@@ -1,0 +1,33 @@
+{
+	"name": "dawn",
+	"targetType": "executable",
+	"sourcePaths": [ "src" ],
+
+	"configurations": [
+		{
+			"name": "game-desktop",
+			"targetName": "game",
+			"targetPath": "../bin",
+			"workingDirectory": "../bin",
+			"versions": [ "GAME", "DESKTOP" ],
+			"libs": ["Opengl32"],
+			"excludedSourceFiles": [
+				"src/_object.d",
+				"src/wasm.d",
+			]
+		},
+		{
+			"name": "game-wasm",
+			"targetName": "game",
+			"dflags-ldc": [
+				"--fvisibility=hidden",
+				"-linkonce-templates", "-i=core", "-i=std", "-i=src", "-I=src"
+			],
+			"lflags-ldc": [ "-allow-undefined" ],
+
+			"targetPath": "../bin",
+			"workingDirectory": "../bin",
+			"versions": [ "GAME", "WASM" ]
+		}
+	]
+}
