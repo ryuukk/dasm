@@ -20,8 +20,10 @@
 			"name": "game-wasm",
 			"targetName": "game",
 			"dflags-ldc": [
-				"--fvisibility=hidden",
-				"-linkonce-templates", "-i=core", "-i=std", "-i=src", "-I=src"
+				"-wi",
+				"--fvisibility=hidden", "-mixin=_mx", 
+				"-linkonce-templates", 
+				"-i=core", "-i=std", "-i=src", "-I=src"
 			],
 			"lflags-ldc": [ "-allow-undefined" ],
 

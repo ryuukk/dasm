@@ -1,6 +1,7 @@
 module object;
 version(WASM):
 
+import wasm = wasm;
 
 alias size_t = uint;
 alias ptrdiff_t = int;
@@ -72,6 +73,7 @@ static foreach(type; AliasSeq!(byte, char, dchar, double, float, int, long, shor
 		class TypeInfo_}~type.mangleof~q{ : TypeInfo {
 			override size_t size() const { return type.sizeof; }
 			override bool equals(void* a, void* b) {
+
 				static if(is(type == void))
 					return false;
 				else
@@ -81,15 +83,16 @@ static foreach(type; AliasSeq!(byte, char, dchar, double, float, int, long, shor
 		class TypeInfo_A}~type.mangleof~q{ : TypeInfo_Array {
 			override const(TypeInfo) next() const { return typeid(type); }
 			override bool equals(void* av, void* bv) {
+
 				type[] a = *(cast(type[]*) av);
 				type[] b = *(cast(type[]*) bv);
+
 
 				static if(is(type == void))
 					return false;
 				else {
-					foreach(idx, item; a)
-						if(item != b[idx])
-							return false;
+					for(int i = 0; i < a.length; i++)
+						if(a[i] != b[i]) return false;
 					return true;
 				}
 			}
@@ -108,7 +111,9 @@ class TypeInfo  {
 	const(TypeInfo) next() const { return this; }
 	size_t size() const { return 1; }
 
-	bool equals(void* a, void* b) { return false; }
+	bool equals(void* a, void* b) { 
+		log("##### missing equals from TypeInfo somewhere!!!");
+		return false; }
 }
 
 class TypeInfo_Class : TypeInfo {
@@ -133,16 +138,43 @@ class TypeInfo_Const : TypeInfo {
 	TypeInfo base;
 	override size_t size() const { return base.size; }
 	override const(TypeInfo) next() const { return base; }
+
+	
+	override bool equals(void* p1, void* p2) {
+		return base.equals(p1, p2);
+	}
 }
 
 class TypeInfo_Pointer : TypeInfo {
 	TypeInfo m_next;
+
+	override size_t size() const { return (void*).sizeof; }
+	override bool equals(in void* p1, in void* p2) 
+    {
+        return *cast(void**)p1 == *cast(void**)p2;
+    }
+	override const(TypeInfo) next() const { return m_next; }
+
 }
 
 class TypeInfo_Array : TypeInfo {
 	TypeInfo value;
-	override size_t size() const { return 2*size_t.sizeof; }
+	override size_t size() const { return (void[]).sizeof; }
 	override const(TypeInfo) next() const { return value; }
+
+	override bool equals(void* p1, void* p2) {
+        void[] a1 = *cast(void[]*)p1;
+        void[] a2 = *cast(void[]*)p2;
+        if (a1.length != a2.length)
+            return false;
+        size_t sz = value.size;
+        for (size_t i = 0; i < a1.length; i++)
+        {
+            if (!value.equals(a1.ptr + i * sz, a2.ptr + i * sz))
+                return false;
+        }
+        return true;
+	}
 }
 
 class TypeInfo_StaticArray : TypeInfo {
@@ -152,19 +184,25 @@ class TypeInfo_StaticArray : TypeInfo {
     override const(TypeInfo) next() const { return value; }
 
 	override bool equals(void* p1, void* p2) {
-		size_t sz = value.size;
+        size_t sz = value.size;
 
-		for (size_t u = 0; u < len; u++)
-		{
-		    if (!value.equals(p1 + u * sz, p2 + u * sz))
-		    {
-			return false;
-		}
-		}
-		return true;
+        for (size_t u = 0; u < len; u++)
+        {
+            if (!value.equals(p1 + u * sz, p2 + u * sz))
+                return false;
+        }
+        return true;
 	}
 
 }
+
+class AAA : TypeInfo
+{
+	
+    TypeInfo base;
+}
+
+import dbg;
 
 class TypeInfo_Struct : TypeInfo {
 	string name;
@@ -181,9 +219,10 @@ class TypeInfo_Struct : TypeInfo {
 	void function(void*) postblit;
 	uint align_;
 	immutable(void)* rtinfo;
+
 	override size_t size() const { return m_init.length; }
 
-    override bool equals(in void* p1, in void* p2) @trusted
+    override bool equals(in void* p1, in void* p2)
     {
         if (!p1 || !p2)
             return false;
@@ -203,7 +242,6 @@ extern(C) bool _xopCmp(in void*, in void*) { return false; }
 extern(C) int _adEq2(void[] a1, void[] a2, TypeInfo ti)
 {
 	import dbg;
-	if(ti is null) log("fuck3");
 
     if (a1.length != a2.length)
         return 0;               // not equal
@@ -258,4 +296,31 @@ int _d_isbaseof2(scope TypeInfo_Class oc, scope const TypeInfo_Class c, scope re
     } while (oc);
 
     return false;
+}
+
+extern(C) void* memset(void* s, int c, size_t n) {
+	auto d = cast(ubyte*) s;
+	while(n) {
+		*d = cast(ubyte) c;
+		n--;
+	}
+	return s;
+}
+
+extern(C) void _d_assert(string file, uint line) {
+	import dbg;
+	import string;
+	char[256] tmp = 0;
+	int count;
+	for(int i =0; i < file.length; i++)
+	{
+		tmp[i] = file[i];
+		count++;
+	}
+	tmp[count++] = ':';
+
+	itoa(line, &tmp[count], 10);
+	
+	log(tmp.ptr);
+	wasm.abort();
 }

@@ -21,19 +21,17 @@
 		{
 			// this is required, otherwise it complains
 			__assert: () => {},
-       		_d_assert: (file,line) => abort("assert",file,line),
+       		_d_assert: (file,line) => {
+			},
 
 			WAJS_log: (ptr, len) => {
 				console.log(`D: printf: ${MStrGet(ptr, len)}`);
 			},
-
-			acquire: (returnType, modlen, modptr, javascriptCodeStringLength, javascriptCodeStringPointer, argsLength, argsPtr) =>{
+			abort: () => {
+				ABORT = true;
+				console.log("-- ABORT --");
 			},
-			retain: function(handle) {
-	},
-	release: function(handle) {
-	},	abort: function() {
-	},		}
+		};
 
 		
 

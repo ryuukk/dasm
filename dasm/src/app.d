@@ -9,6 +9,15 @@ import dbg;
 
 version(WASM)
 {
+    struct VertexB
+    {
+        float[2] pos;
+    }
+    struct Hold
+    {
+        VertexB v;
+    }
+
     void main() 
     {
         log("main found");
