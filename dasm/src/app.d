@@ -13,17 +13,7 @@ version(WASM)
     {
         log("main found");
 
-        //start();
-        float[2] aaaaa_a = 5; 
-        float[2] aaaaa_b = 5;
-
-        float[2] a = 5; 
-        float[2] b = 5;
-
-        
-        bool ok = a == b;
-        if(ok) log("ok");
-        else log("no"); 
+        start();
     }
 }
 else

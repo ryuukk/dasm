@@ -64,7 +64,39 @@ extern(C) int memcmp(const(void)* s1, const(void*) s2, size_t n) {
 	return 0;
 }
 
-extern(C):
+
+
+alias AliasSeq(T...) = T;
+static foreach(type; AliasSeq!(byte, char, dchar, double, float, int, long, short, ubyte, uint, ulong, ushort, void, wchar)) {
+	mixin(q{
+		class TypeInfo_}~type.mangleof~q{ : TypeInfo {
+			override size_t size() const { return type.sizeof; }
+			override bool equals(void* a, void* b) {
+				static if(is(type == void))
+					return false;
+				else
+				return (*(cast(type*) a) == (*(cast(type*) b)));
+			}
+		}
+		class TypeInfo_A}~type.mangleof~q{ : TypeInfo_Array {
+			override const(TypeInfo) next() const { return typeid(type); }
+			override bool equals(void* av, void* bv) {
+				type[] a = *(cast(type[]*) av);
+				type[] b = *(cast(type[]*) bv);
+
+				static if(is(type == void))
+					return false;
+				else {
+					foreach(idx, item; a)
+						if(item != b[idx])
+							return false;
+					return true;
+				}
+			}
+		}
+	});
+}
+
 struct Interface {
 	TypeInfo_Class classinfo;
 	void*[] vtbl;
@@ -185,6 +217,45 @@ extern(C) void _d_arraybounds_slice(string file, uint line, size_t lower, size_t
 {
 }
 
- extern(C)    void _d_arraybounds_index(string file, uint line, size_t index, size_t length)
+extern(C)    void _d_arraybounds_index(string file, uint line, size_t index, size_t length)
+{
+}
+
+extern(C) void* _d_dynamic_cast(Object o, TypeInfo_Class c) {
+	void* res = null;
+	size_t offset = 0;
+	if (o && _d_isbaseof2(typeid(o), c, offset))
+	{
+		res = cast(void*) o + offset;
+	}
+	return res;
+}
+
+extern(C)
+int _d_isbaseof2(scope TypeInfo_Class oc, scope const TypeInfo_Class c, scope ref size_t offset) @safe
+
+{
+    if (oc is c)
+        return true;
+
+    do
     {
-    }
+        if (oc.base is c)
+            return true;
+
+        // Bugzilla 2013: Use depth-first search to calculate offset
+        // from the derived (oc) to the base (c).
+        foreach (iface; oc.interfaces)
+        {
+            if (iface.classinfo is c || _d_isbaseof2(iface.classinfo, c, offset))
+            {
+                offset += iface.offset;
+                return true;
+            }
+        }
+
+        oc = oc.base;
+    } while (oc);
+
+    return false;
+}
