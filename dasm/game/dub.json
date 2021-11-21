@@ -1,0 +1,42 @@
+{
+	"name": "game",
+	"targetType": "executable",
+	"sourcePaths": [ "src" ],
+
+	"configurations": [
+		{
+			"name": "game-desktop",
+			"targetName": "game",
+			"targetPath": "../../bin",
+			"workingDirectory": "../../bin",
+			"versions": [ "GAME", "DESKTOP" ],
+			"libs": ["Opengl32"],
+
+			"dependencies": {
+                "rt": { "path": "../libs/rt", "version": "*" },
+				"opengl": { "path": "../libs/opengl", "version": "*" },
+				"glfw": { "path": "../libs/glfw", "version": "*" },
+			}
+		},
+		{
+			"name": "game-wasm",
+			"targetName": "game",
+			"dflags-ldc": [
+				"--fvisibility=hidden",
+				"-linkonce-templates", 
+				"-i=core", "-i=std", "-i=src", "-I=src"
+			],
+			"lflags-ldc": [ "-allow-undefined" ],
+
+			"targetPath": "../../bin",
+			"workingDirectory": "../../bin",
+			"versions": [ "GAME", "WASM" ],
+
+			"dependencies": {
+                "rt": { "path": "../libs/rt", "version": "*" },
+				"wasm": { "path": "../libs/wasm", "version": "*" },
+				"opengl": { "path": "../libs/opengl", "version": "*" },
+			}
+		}
+	]
+}

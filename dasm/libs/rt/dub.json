@@ -1,0 +1,6 @@
+{
+	"name": "rt",
+	"targetType": "sourceLibrary",
+    "sourcePaths": [ "." ],
+	"importPaths": [ "." ]
+}

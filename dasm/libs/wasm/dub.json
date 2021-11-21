@@ -1,0 +1,5 @@
+{
+	"name": "wasm",
+	"targetType": "sourceLibrary",
+    "sourcePaths": [ "." ]
+}

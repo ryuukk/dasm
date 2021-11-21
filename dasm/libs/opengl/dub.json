@@ -1,0 +1,5 @@
+{
+	"name": "opengl",
+	"targetType": "sourceLibrary",
+    "sourcePaths": [ "." ]
+}

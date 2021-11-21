@@ -1,0 +1,5 @@
+{
+	"name": "glfw",
+	"targetType": "sourceLibrary",
+    "sourcePaths": [ "." ]
+}

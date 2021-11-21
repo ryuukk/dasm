@@ -2,108 +2,18 @@
 
 <head>
 	<script>
-		
-		var WA;
-		var WGL;
-		var ABORT = false;
-		var initTime;
-		
-		const decoder = new TextDecoder("utf-8");
-		const encoder = new TextEncoder();
+		(function (MOD) {
+			'use strict';
 
-		var MStrGet = (ptr, len) => {
-			var m = new Uint8Array(WA.exports.memory.buffer, ptr, len);
-			return decoder.decode(m.slice(0, len));
-
-		};
-
-		var env = 
-		{
-			// this is required, otherwise it complains
-			__assert: () => {},
-       		_d_assert: (file,line) => {
-			},
-
-			WAJS_log: (ptr, len) => {
-				console.log(`D: printf: ${MStrGet(ptr, len)}`);
-			},
-			abort: () => {
-				ABORT = true;
-				console.log("-- ABORT --");
-			},
-		};
-
-		
-
-		var WGL_init_context = (canvas, attr) =>
-		{
-			var attr = { majorVersion: 1, minorVersion: 0, antialias: true, alpha: false };
-			var errorInfo = '';
-			try
-			{
-				let onContextCreationError = (event) => { errorInfo = event.statusMessage || errorInfo; };
-				canvas.addEventListener('webglcontextcreationerror', onContextCreationError, false);
-				try { WGL = canvas.getContext('webgl', attr) || canvas.getContext('experimental-webgl', attr); }
-				finally { canvas.removeEventListener('webglcontextcreationerror', onContextCreationError, false); }
-				if (!WGL) throw 'Could not create context';
-				else console.log("WGL ok");
+			if (!MOD.libraries) {
+				MOD.libraries = [];
 			}
-			catch (e) { abort('WEBGL', e + (errorInfo ? ' (' + errorInfo + ')' : '')); }
-			return true;
-		}
 
-		// This sets up the canvas for GL rendering
-		env.WAJS_setup_canvas = (width, height) =>
-		{
-			// Get the canvas and set its size as requested by the wasm module
-			var canvas = document.getElementById("wgl_canvas");
-			canvas.addEventListener("contextmenu", (event) => { event.preventDefault(); });
-			canvas.setAttribute("width", width);
-			canvas.setAttribute("height", height);
-			canvas.setAttribute("title", "MyCanvas");
-
-			// Set up the WebGL context for our OpenGL 2.0 emulation
-			if (!WGL_init_context(canvas)) return;
-
-			console.log("Canvas setup to: " + width +":"+height);
-			var sts = document.getElementById("wa_status");
-			sts.textContent = "Status: Loaded";
-
-			// Store the startup time
-			initTime = Date.now();
-
-			// Call the exported WA_render function every frame (unless the program crashes and aborts)
-			var draw_func_ex = () => { if (ABORT) return; window.requestAnimationFrame(draw_func_ex); WA.exports.WA_render(); };
-			
-			window.requestAnimationFrame(draw_func_ex);
-		};
-
-		// Export a custom GetTime function that returns milliseconds since startup
-		env.WAJS_get_time = () => { return Date.now() - initTime; };
-		
-		// wgl
-		env.glViewport = (x0, x1, x2, x3) => { WGL.viewport(x0, x1, x2, x3); };
-		env.glClear = (x0) => { WGL.clear(x0); };
-		env.glClearColor = (x0, x1, x2, x3) => { WGL.clearColor(x0, x1, x2, x3); };
-		env.glColorMask = (red, green, blue, alpha) => { WGL.colorMask(!!red, !!green, !!blue, !!alpha); };
-
-		const importObject = {
-			env: env,
-		};
-
-		WebAssembly.instantiateStreaming(fetch("./game.wasm"), importObject)
-			.then(result => {
-
-				console.log('Loaded wasm file');
-
-				WA = result.instance;
-
-				const { exports } = result.instance;
-
-				// call _start
-				exports._start();
-			});
+		})(window.MOD || (window.MOD = {}));
 	</script>
+	<script src="lib/string.js"></script>
+	<script src="lib/print.js"></script>
+	<script src="main.js"></script>
 	<style>
 		h1,
 		h2 {
@@ -111,34 +21,10 @@
 		}
 	</style>
 </head>
-
 <body style="background-color: #222;">
 	<h1 style="text-align:center">- game -</h1>
 	<h2 id="wa_status" style="text-align:center">Status: Loading...</h2>
 	<canvas id="wgl_canvas" style="display:block;margin:0 auto 10px" oncontextmenu="event.preventDefault()" width="0" height="0"></canvas>
-	<div id="wa_log"></div>
-	<script type="text/javascript">
-		var WA =
-		{
-			module: 'output.wasm',
-			canvas: document.getElementById('wgl_canvas'),
-			print: function (text) {
-				document.getElementById('wa_log').innerHTML += text.replace(/\n/g, "<br>");
-			},
-			error: function (code, msg) {
-				document.getElementById('wa_status').innerHTML = '<div style="text-align:center;background-color:#FFF;color:#000;padding:1.5em;width:540px;margin:2em auto">' + {
-					BOOT: 'Error during startup. Your browser might not support WebAssembly. Please update it to the latest version.',
-					WEBGL: 'Your browser or graphics card does not seem to support <a href="http://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation" style="color:#000">WebGL</a>.<br>Find out how to get it <a href="http://get.webgl.org/" style="color:#000">here</a>.',
-					CRASH: 'The program crashed.',
-					MEM: 'The program ran out of memory.',
-				}[code] + '<br><br>(' + msg + ')</div>';
-				WA.canvas.style.display = 'none';
-			},
-			started: function () {
-				document.getElementById('wa_status').innerHTML = '';
-			},
-		};
-	</script>
 </body>
 
 </html>
