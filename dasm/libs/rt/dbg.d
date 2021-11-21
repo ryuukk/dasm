@@ -34,7 +34,9 @@ string enum_to_str(E)(E v) if (is(E == enum))
 }
 
 
-void writelnf(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
+alias writelnf = writeln;
+
+void writeln(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
     version(WASM)
     {

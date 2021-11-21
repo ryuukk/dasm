@@ -10,7 +10,7 @@ version(WASM)
 {
     void main() 
     {
-        writelnf("main() found");
+        writeln("main() found");
         start();
     }
 }

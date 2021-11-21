@@ -23,16 +23,9 @@ version(WASM)
     }
 }
 
-struct Vertex
-{
-    float[2] pos;
-}
-
 
 void render()
 {
-   
-
 	version(WASM)
     {
         import wasm;
@@ -40,15 +33,7 @@ void render()
     }
     else float f = 0;
 
-    
-    Vertex a  = Vertex( [0,0] );
-    Vertex b  = Vertex( [0,0] );
-    auto c = a == b;
-    if (c)
-        writelnf("hi!!!");
-
     glViewport(0,0,800,600);
 	glClear(GL_COLOR_BUFFER_BIT);
     glClearColor(f, 0, 0, 1);
-    
 }
