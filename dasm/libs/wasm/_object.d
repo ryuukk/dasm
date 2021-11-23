@@ -54,10 +54,14 @@ extern(C) bool _xopEquals(in void*, in void*) { return false; } // assert(0);
 pragma(LDC_intrinsic, "llvm.memcpy.p0i8.p0i8.i#")
     void llvm_memcpy(T)(void* dst, const(void)* src, T len, bool volatile_ = false);
 
-extern(C) private void* memcpy(void* dest, const void* src, size_t n) {
-	llvm_memcpy(dest, src, n);
+extern(C) void *memcpy(void* dest, const(void)* src, size_t n)
+{
+	ubyte *d = cast(ubyte*) dest;
+	const (ubyte) *s = cast(const(ubyte)*)src;
+	for (; n; n--) *d++ = *s++;
 	return dest;
 }
+
 
 extern(C) int memcmp(const(void)* s1, const(void*) s2, size_t n) {
 	auto b = cast(ubyte*) s1;
