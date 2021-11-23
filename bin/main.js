@@ -1,8 +1,6 @@
 (function (MOD) {
 	'use strict';
 
-    var WA;
-    var WGL;
     var ABORT = false;
     var initTime;
     
@@ -46,9 +44,9 @@
         {
             let onContextCreationError = (event) => { errorInfo = event.statusMessage || errorInfo; };
             canvas.addEventListener('webglcontextcreationerror', onContextCreationError, false);
-            try { WGL = canvas.getContext('webgl', attr) || canvas.getContext('experimental-webgl', attr); }
+            try { MOD.WGL = canvas.getContext('webgl', attr) || canvas.getContext('experimental-webgl', attr); }
             finally { canvas.removeEventListener('webglcontextcreationerror', onContextCreationError, false); }
-            if (!WGL) throw 'Could not create context';
+            if (!MOD.WGL) throw 'Could not create context';
             else console.log("JS: WGL ok");
         }
         catch (e) { abort('WEBGL', e + (errorInfo ? ' (' + errorInfo + ')' : '')); }
@@ -79,7 +77,7 @@
         var draw_func_ex = () => {
              if (ABORT) return;
               window.requestAnimationFrame(draw_func_ex);
-              WA.exports.WA_render(); 
+              MOD.WA.exports.WA_render(); 
         };
         
         window.requestAnimationFrame(draw_func_ex);
@@ -89,12 +87,6 @@
     env.WAJS_get_time = () => { return Date.now(); };
     env.WAJS_get_elapsed_time = () => { return Date.now() - initTime; };
     
-    // wgl
-    env.glViewport = (x0, x1, x2, x3) => { WGL.viewport(x0, x1, x2, x3); };
-    env.glClear = (x0) => { WGL.clear(x0); };
-    env.glClearColor = (x0, x1, x2, x3) => { WGL.clearColor(x0, x1, x2, x3); };
-    env.glColorMask = (red, green, blue, alpha) => { WGL.colorMask(!!red, !!green, !!blue, !!alpha); };
-
     const importObject = {
         env: env,
     };
@@ -104,10 +96,18 @@
 
             console.log('JS: Loaded wasm file');
 
-            
-            WA = result.instance;
+            let memory = result.instance.exports.memory;
 
-            MOD.memory = result.instance.exports.memory;
+            MOD.WA = result.instance;
+            MOD.memory = memory;
+            MOD.HEAP8 = new Int8Array(memory.buffer);
+            MOD.HEAPU8 = new Uint8Array(memory.buffer);
+            MOD.HEAP16 = new Int16Array(memory.buffer);
+            MOD.HEAPU16 = new Uint16Array(memory.buffer);
+            MOD.HEAP32 = new Uint32Array(memory.buffer);
+            MOD.HEAPU32 = new Uint32Array(memory.buffer);
+            MOD.HEAPF32 = new Float32Array(memory.buffer);
+            MOD.HEAPF64 = new Float64Array(memory.buffer);
 
             const { exports } = result.instance;
 

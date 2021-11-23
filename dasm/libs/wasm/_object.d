@@ -54,7 +54,7 @@ extern(C) bool _xopEquals(in void*, in void*) { return false; } // assert(0);
 pragma(LDC_intrinsic, "llvm.memcpy.p0i8.p0i8.i#")
     void llvm_memcpy(T)(void* dst, const(void)* src, T len, bool volatile_ = false);
 
-export extern(C) void* memcpy(void* dest, const void* src, size_t n) {
+extern(C) private void* memcpy(void* dest, const void* src, size_t n) {
 	llvm_memcpy(dest, src, n);
 	return dest;
 }
@@ -70,6 +70,15 @@ extern(C) int memcmp(const(void)* s1, const(void*) s2, size_t n) {
 	return 0;
 }
 
+
+extern(C) private void* memset(void* s, int c, size_t n) {
+	auto d = cast(ubyte*) s;
+	while(n) {
+		*d = cast(ubyte) c;
+		n--;
+	}
+	return s;
+}
 
 
 alias AliasSeq(T...) = T;
@@ -111,14 +120,21 @@ struct Interface {
 	size_t offset;
 }
 
-class Object {}
+class Object {
+    bool opEquals(Object o)
+    {
+        return this is o;
+    }
+}
+
 class TypeInfo  {
 	const(TypeInfo) next() const { return this; }
 	size_t size() const { return 1; }
 
 	bool equals(void* a, void* b) { 
 		writelnf("##### missing equals from TypeInfo somewhere!!!");
-		return false; }
+		return false; 
+	}
 }
 
 class TypeInfo_Class : TypeInfo {
@@ -303,17 +319,93 @@ int _d_isbaseof2(scope TypeInfo_Class oc, scope const TypeInfo_Class c, scope re
     return false;
 }
 
-extern(C) void* memset(void* s, int c, size_t n) {
-	auto d = cast(ubyte*) s;
-	while(n) {
-		*d = cast(ubyte) c;
-		n--;
-	}
-	return s;
-}
 
 extern(C) void _d_assert(string file, uint line) {
 	import dbg;
 	writelnf("D_ASSERT: ", file, line);
 	wasm.abort();
+}
+
+
+
+
+
+
+// The compiler lowers `lhs == rhs` to `__equals(lhs, rhs)` for
+// * dynamic arrays,
+// * (most) arrays of different (unqualified) element types, and
+// * arrays of structs with custom opEquals.
+
+ // The scalar-only overload takes advantage of known properties of scalars to
+ // reduce template instantiation. This is expected to be the most common case.
+bool __equals(T1, T2)(scope const T1[] lhs, scope const T2[] rhs)
+@nogc nothrow pure @trusted
+if (__traits(isScalar, T1) && __traits(isScalar, T2))
+{
+    if (lhs.length != rhs.length)
+        return false;
+
+    static if (T1.sizeof == T2.sizeof
+        // Signedness needs to match for types that promote to int.
+        // (Actually it would be okay to memcmp bool[] and byte[] but that is
+        // probably too uncommon to be worth checking for.)
+        && (T1.sizeof >= 4 || __traits(isUnsigned, T1) == __traits(isUnsigned, T2))
+        && !__traits(isFloating, T1) && !__traits(isFloating, T2))
+    {
+        if (!__ctfe)
+        {
+            // This would improperly allow equality of integers and pointers
+            // but the CTFE branch will stop this function from compiling then.
+            import core.stdc.string : memcmp;
+            return lhs.length == 0 ||
+                0 == memcmp(cast(const void*) lhs.ptr, cast(const void*) rhs.ptr, lhs.length * T1.sizeof);
+        }
+    }
+
+    foreach (const i; 0 .. lhs.length)
+        if (lhs.ptr[i] != rhs.ptr[i])
+            return false;
+    return true;
+}
+
+bool __equals(T1, T2)(scope T1[] lhs, scope T2[] rhs)
+if (!__traits(isScalar, T1) || !__traits(isScalar, T2))
+{
+    if (lhs.length != rhs.length)
+        return false;
+
+    if (lhs.length == 0)
+        return true;
+
+    static if (useMemcmp!(T1, T2))
+    {
+        if (!__ctfe)
+        {
+            static bool trustedMemcmp(scope T1[] lhs, scope T2[] rhs) @trusted @nogc nothrow pure
+            {
+                pragma(inline, true);
+                import core.stdc.string : memcmp;
+                return memcmp(cast(void*) lhs.ptr, cast(void*) rhs.ptr, lhs.length * T1.sizeof) == 0;
+            }
+            return trustedMemcmp(lhs, rhs);
+        }
+        else
+        {
+            foreach (const i; 0 .. lhs.length)
+            {
+                if (at(lhs, i) != at(rhs, i))
+                    return false;
+            }
+            return true;
+        }
+    }
+    else
+    {
+        foreach (const i; 0 .. lhs.length)
+        {
+            if (at(lhs, i) != at(rhs, i))
+                return false;
+        }
+        return true;
+    }
 }

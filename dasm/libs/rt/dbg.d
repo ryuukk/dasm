@@ -14,8 +14,30 @@ else
 }
 
 
-void panic()
+void not_implemented(string file = __FILE__, int line = __LINE__)
 {
+    panic("not implemented at {}:{}", file, line);
+}
+void panic(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
+{
+    version(WASM)
+    {
+        print_char('[');
+        print_str(file.ptr);
+        print_char(':');    
+        print_int(line);
+        print_char(']');
+        print_char(' ');
+    }
+    else
+        printf("[%s:%d] ", file.ptr, line);
+
+    writef_impl(fmt, args);
+
+    version(WASM) 
+        print_char('\n');
+    else
+        printf("\n");
 
     abort();
 }
@@ -53,7 +75,8 @@ void writeln(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line
 
     writef_impl(fmt, args);
 
-    version(WASM) print_char('\n');
+    version(WASM) 
+        print_char('\n');
     else
         printf("\n");
 }

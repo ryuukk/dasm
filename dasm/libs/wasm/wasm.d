@@ -30,3 +30,6 @@ void print_str(const char* value);
 void print_str_len(const char* value, int len);
 void print_ptr(void* value);
 // ---
+
+
+// JS math API

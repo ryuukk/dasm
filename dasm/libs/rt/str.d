@@ -1,5 +1,7 @@
 module str;
 
+import memory;
+
 
 size_t str_len(const char* txt)
 {
@@ -7,6 +9,12 @@ size_t str_len(const char* txt)
     while(txt[l] != '\0')
         l++;
     return l;
+}
+
+
+char* strcpy(char *dest, const char *src)
+{
+  return cast(char*)memcpy(cast(void*)dest, cast(void*)src, str_len(src) + 1);
 }
 
 

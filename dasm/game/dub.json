@@ -14,7 +14,7 @@
 
 			"dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
-				"opengl": { "path": "../libs/opengl", "version": "*" },
+				"gfx": { "path": "../libs/gfx", "version": "*" },
 				"glfw": { "path": "../libs/glfw", "version": "*" },
 			}
 		},
@@ -35,7 +35,7 @@
 			"dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
 				"wasm": { "path": "../libs/wasm", "version": "*" },
-				"opengl": { "path": "../libs/opengl", "version": "*" },
+				"gfx": { "path": "../libs/gfx", "version": "*" },
 			}
 		}
 	]

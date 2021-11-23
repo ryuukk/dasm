@@ -1,5 +1,17 @@
 module memory;
 
+
+version (WASM)
+{
+	import wasm;
+}
+else
+{
+	import stdc = core.stdc.stdio;
+	import stdlib = core.stdc.stdlib;
+	import stdc_str = core.stdc.string;
+}
+
 void* malloc(size_t size);
 void free(void* ptr);
 void* calloc(size_t nmemb, size_t size);
@@ -7,8 +19,6 @@ void* realloc(void* ptr, size_t size);
 
 version (WASM)
 {
-	import wasm;
-
 	alias uintptr_t = size_t;
 
 	enum PAGE_SIZE = (64 * 1024);
@@ -287,9 +297,6 @@ version (WASM)
 }
 else
 {
-	import stdc = core.stdc.stdio;
-	import stdlib = core.stdc.stdlib;
-
 	void* malloc(size_t size)
 	{
 		return stdlib.malloc(size);
@@ -308,5 +315,29 @@ else
 	void* realloc(void* ptr, size_t size)
 	{
 		return stdlib.realloc(ptr, size);
+	}
+}
+
+void* memset(void* s, int c, size_t n)
+{
+	auto d = cast(ubyte*) s;
+	while(n) {
+		*d = cast(ubyte) c;
+		n--;
+	}
+	return s;
+}
+
+void* memcpy(void* dst, const void* src, size_t n) {
+
+	version(WASM)
+	{
+		llvm_memcpy(dst, src, n);
+		return dst;
+	}
+	else
+	{
+		stdc_str.memcpy(dst, src, n);
+		return dest;
 	}
 }
