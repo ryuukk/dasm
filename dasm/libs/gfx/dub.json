@@ -1,5 +1,6 @@
 {
 	"name": "gfx",
 	"targetType": "sourceLibrary",
-    "sourcePaths": [ "." ]
+    "sourcePaths": [ "." ],
+	"importPaths": [ "." ]
 }
