@@ -4,13 +4,12 @@ import dbg;
 import gl;
 import math;
 import str;
+import memory;
 
 enum LocType : byte
 {
     ATTRIBUTE, UNIFORM
 }
-
-
 
 struct ShaderLoc 
 {
@@ -378,3 +377,557 @@ struct ShaderProgram {
     }
 }
 
+
+
+enum VertexUsage : int
+{
+    POSITION = 1,
+    COLOR_UNPACKED = 2,
+    COLOR_PACKED = 4,
+    NORMAL = 8,
+    TEXTURE_COOR = 16,
+    GENERIC = 32,
+    BONE_WEIGHT = 64,
+    TANGENT = 128,
+    BINORMAL = 256,
+    MAX = 9,
+}
+
+
+struct VertexAttributes
+{
+    VertexAttribute[VertexUsage.MAX] attributes;
+    int vertex_size;
+    uint mask;
+    ubyte num_attributes;
+
+    ref VertexAttributes add(VertexAttribute attr) return
+    {
+        attributes[num_attributes++] = attr;
+        vertex_size = calculate_offsets();
+        return this;
+    }
+
+    int calculate_offsets()
+    {
+        int count = 0;
+        for(int i = 0; i < num_attributes; i++)
+        {
+            auto a = &attributes[i];
+            a.offset = count;
+            count += a.get_size_bytes();
+
+            mask |= a.usage;
+        }
+        return count;
+    }
+
+    ulong get_mask_with_size_packed()
+    {
+        return mask | (cast(ulong) vertex_size << 32);
+    }
+}
+
+struct VertexAttribute
+{
+    VertexUsage usage;
+    int num_components = 0;
+    bool normalized = false;
+    uint gl_type = 0;
+    int offset = 0;
+    char[64] aliass;
+    int unit = 0;
+    int _usage_index;
+
+    int get_size_bytes()
+    {
+        switch(gl_type)
+        {
+            case GL_FLOAT: return 4 * num_components;
+            case GL_UNSIGNED_SHORT:
+            case GL_SHORT:
+                return 2 * num_components;
+            case GL_UNSIGNED_BYTE:
+            case GL_BYTE:
+                return num_components;
+
+            default: 
+                panic("VA type not supported: %i", gl_type); 
+                break;
+        }
+        return 0;
+    }
+
+    int get_key()
+    {
+        return (_usage_index << 8) + (unit & 0xFF);
+    }
+
+    static VertexAttribute position2D()
+    {
+        VertexAttribute ret;
+        ret.usage = VertexUsage.POSITION;
+        ret.num_components = 2;
+        ret.aliass = "a_position";
+        ret.gl_type = GL_FLOAT;
+        ret._usage_index = number_of_trailing_zeros(ret.usage);
+        return ret;
+    }
+
+    static VertexAttribute position3D()
+    {
+        VertexAttribute ret;
+        ret.usage = VertexUsage.POSITION;
+        ret.num_components = 3;
+        ret.aliass = "a_position";
+        ret.gl_type = GL_FLOAT;
+        ret._usage_index = number_of_trailing_zeros(ret.usage);
+        return ret;
+    }
+    
+    static VertexAttribute color_unpacked()
+    {
+        VertexAttribute ret;
+        ret.usage = VertexUsage.COLOR_UNPACKED;
+        ret.num_components = 4;
+        ret.aliass = "a_color";
+        ret.gl_type = GL_FLOAT;
+        ret._usage_index = number_of_trailing_zeros(VertexUsage.COLOR_UNPACKED);
+        return ret;
+    }
+    
+    static VertexAttribute color_packed()
+    {
+        VertexAttribute ret;
+        ret.usage = VertexUsage.COLOR_PACKED;
+        ret.num_components = 4;
+        ret.aliass = "a_color";
+        ret.gl_type = 0x1401;
+        ret.normalized = true;
+        ret._usage_index = number_of_trailing_zeros(VertexUsage.COLOR_PACKED);
+        return ret;
+    }
+    static VertexAttribute normal()
+    {
+        VertexAttribute ret;
+        ret.usage = VertexUsage.POSITION;
+        ret.num_components = 3;
+        ret.aliass = "a_normal";
+        ret.gl_type = GL_FLOAT;
+        ret._usage_index = number_of_trailing_zeros(VertexUsage.NORMAL);
+        return ret;
+    }
+    static VertexAttribute tex_coords(int index)
+    {
+        VertexAttribute ret;
+        ret.usage = VertexUsage.TEXTURE_COOR;
+        ret.num_components = 2;
+        ret.aliass = "a_texCoord0";
+        if(index > 0)
+            ret.aliass[10] = cast(char) (index + cast(int)'0');
+        ret.gl_type = GL_FLOAT;
+        ret.unit = index;
+        ret._usage_index = number_of_trailing_zeros(VertexUsage.TEXTURE_COOR);
+        return ret;
+    }
+
+    static VertexAttribute blend_weight(int index)
+    {
+        VertexAttribute ret;
+        ret.usage = VertexUsage.BONE_WEIGHT;
+        ret.num_components = 2;
+        ret.aliass = "a_boneWeight0";
+        if(index > 0)
+            ret.aliass[12] = cast(char) (index + cast(int)'0');
+        ret.gl_type = GL_FLOAT;
+        ret.unit = index;
+        ret._usage_index = number_of_trailing_zeros(VertexUsage.BONE_WEIGHT);
+        return ret;
+    }
+}
+
+
+struct VertexBuffer 
+{
+    uint buffer_handle;
+    uint vao_handle = 0;
+    uint usage = 0;
+    bool is_static = false;
+    bool is_dirty = false;
+    bool is_bound = false;
+
+    VertexAttributes attributes;
+    float[] vertices;
+
+    void create(bool s, int size, VertexAttributes attrs)
+    {
+        int vsize = size * (attrs.vertex_size / 4);
+
+        attributes = attrs;
+
+        auto ptr = cast(float*) malloc(float.sizeof * vsize);
+        vertices = ptr[0 .. vsize];
+
+        glGenBuffers(1, &buffer_handle);
+
+        usage = s ? GL_STATIC_DRAW : GL_DYNAMIC_DRAW;
+
+        glGenVertexArrays(1, &vao_handle);
+    }
+
+    void deinit()
+    {
+        if(vertices.length ==0) return;
+
+        free(vertices.ptr);
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDeleteBuffers(1, &buffer_handle);
+        glDeleteVertexArrays(1, &vao_handle);
+    }
+
+    void bind(ShaderProgram* program, int[] locations)
+    {
+        glBindVertexArray(vao_handle);
+        //TODO:
+        glBindBuffer(GL_ARRAY_BUFFER, buffer_handle);
+
+        bind_attributes(program, locations);
+        bind_data();
+        is_bound = true;
+    }
+    
+    void bind_attributes(ShaderProgram* program, int[] locations)
+    {
+        auto numAttributes = attributes.num_attributes;
+        for(int i = 0; i < numAttributes; i++) 
+        {
+            auto attr = &attributes.attributes[i];
+            auto loc = program.get_attrib_loc(attr.aliass);
+            if(loc < 0)
+            {
+                //LINFO("no va for: %s", attr.aliass.ptr);
+                writeln("no va for: {}", attr.aliass);
+                continue;
+            }
+
+            program.enable_vert_attr(loc);
+            program.set_vert_attr(loc, attr.num_components, attr.gl_type, attr.normalized, attributes.vertex_size, attr.offset);
+
+        }
+
+        // TODO: finish implementing caching, but do we need to do it here?
+    }
+
+    void bind_data()
+    {
+        if(is_dirty)
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, buffer_handle);
+            glBufferData(GL_ARRAY_BUFFER, vertices.length * 4, vertices.ptr, usage);
+            is_dirty = false;
+        }
+    }
+
+    void unbind(ShaderProgram* program, int[] locations)
+    {
+        glBindVertexArray(0);
+        //TODO:
+         glBindBuffer(GL_ARRAY_BUFFER, 0);
+        is_bound = false;
+    }
+
+    void set_data(const float[] data, int offset, int count)
+    {
+        is_dirty = true;
+
+        for(int i = 0; i < count; i++) 
+        {
+            //printf("Set: [%i] < [%i + %i]:%i\n", i, offset, i, data[offset + i]);
+            vertices[i] = data[offset + i];
+        }
+
+        buffer_changed();
+    }
+
+    void buffer_changed()
+    {
+        if(is_bound)
+        {
+			glBindBuffer(GL_ARRAY_BUFFER, buffer_handle);
+            glBufferData(GL_ARRAY_BUFFER, vertices.length * 4, vertices.ptr, usage);
+            is_dirty = false;
+        }
+    }
+
+    uint get_num_vertices()
+    {
+        return cast(uint) vertices.length;
+    }
+
+    uint get_num_max_vertices()
+    {
+        return cast(uint) vertices.length;
+    }
+}
+
+struct IndexBuffer 
+{
+    uint handle;
+    int[] buffer;
+    bool is_direct;
+    bool is_dirty;
+    bool is_bound;
+    uint usage;
+    bool empty;
+
+    void create(bool s, int size)
+    {
+        empty = s == 0;
+
+        is_direct = true;
+
+        glGenBuffers(1, &handle);
+        usage = s ? GL_STATIC_DRAW : GL_DYNAMIC_DRAW;
+
+        
+        if(size > 0)
+        {
+            auto ptr = cast(int*)malloc(int.sizeof * size);
+            buffer = ptr[0 .. size];
+        }
+    }
+
+    void deinit()
+    {
+        if(buffer.length == 0) return;
+        
+        free(buffer.ptr);
+        // TODO: do i need to find 0?
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        glDeleteBuffers(1, &handle);
+    }
+
+    void bind()
+    {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
+        if (is_dirty) {
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer.length * 4, buffer.ptr, usage);            
+            is_dirty = false;
+        }
+        is_bound = true;
+    }
+
+    void unbind()
+    {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
+        if (is_dirty) {
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer.length * 4, buffer.ptr, usage);            
+            is_dirty = false;
+        }
+        is_bound = true;
+    }
+
+    void invalidate()
+    {
+        glGenBuffers(1, &handle);
+        is_dirty = true;
+    }
+
+    void set_data(const int[] data, uint offset, uint count)
+    {
+        is_dirty = true;
+
+        for(int i = 0; i < count; i++) 
+        {
+            buffer[i] = data[offset + i];
+        }
+        if(is_bound)
+        {
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer.length * 4, buffer.ptr, usage);
+            is_dirty = true;
+        }
+    }
+    
+    uint get_num_indices()
+    {
+        return cast(uint)buffer.length;
+    }
+
+    uint get_num_max_indices()
+    {
+        return cast(uint)buffer.length;
+    }
+}
+
+struct Mesh
+{
+    VertexBuffer vb;
+    IndexBuffer ib;
+    bool autobind = true;
+
+    void create(bool s, uint num_v, uint num_i, VertexAttributes attrs)
+    {
+        vb.create(s, num_v, attrs);
+        ib.create(s, num_i);
+    }
+
+    void deinit()
+    {
+        vb.deinit();
+        ib.deinit();
+    }
+
+    void render(ShaderProgram* program, uint primitiveType) {
+		render(
+            program,
+            primitiveType,
+            0,
+            ib.get_num_max_indices() > 0 ? ib.get_num_indices() : vb.get_num_vertices(),
+            autobind
+        );
+	}
+
+    void render(ShaderProgram* program, uint primitiveType, int offset, int count, bool autoBind)
+    {
+        if (count == 0)
+            return;
+
+        if(autoBind) 
+            bind(program, null);
+        
+        if(ib.get_num_indices() > 0)
+        {
+            int orr = offset * 4;
+            glDrawElements(primitiveType, count, GL_UNSIGNED_INT,  cast(void*) orr);
+        }
+        else
+        {
+            glDrawArrays(primitiveType, offset, count);
+        }
+
+
+        if(autoBind)
+            unbind(program, null);
+
+    }
+
+    void bind(ShaderProgram* program, int[] locations)
+    {
+        vb.bind(program, locations);
+        if(ib.get_num_indices() > 0) ib.bind();
+    }
+    
+    void unbind(ShaderProgram* program, int[] locations)
+    {
+        vb.unbind(program, locations);
+        if(ib.get_num_indices() > 0) ib.unbind();
+    }
+}
+
+
+
+
+
+
+
+// -- UTILITIES
+
+int bit_count(int value) {
+    int i = value;
+    // Algo from : http://aggregate.ee.engr.uky.edu/MAGIC/#Population%20Count%20(ones%20Count)
+    i -= ((i >> 1) & 0x55555555);
+    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+    i = (((i >> 4) + i) & 0x0F0F0F0F);
+    i += (i >> 8);
+    i += (i >> 16);
+    return (i & 0x0000003F);
+}
+
+int number_of_trailing_zeros(int i) {
+    return bit_count((i & -i) - 1);
+}
+
+
+
+void create_cube_mesh(Mesh* cube)
+{
+    auto attr = VertexAttributes()
+        .add(VertexAttribute.position3D())
+        .add(VertexAttribute.normal());
+
+    cube.create(true, 24, 36, attr);
+
+    float[72] cubeVerts = [
+        -0.5f, -0.5f, -0.5f,        -0.5f, -0.5f, 0.5f,
+        0.5f, -0.5f, 0.5f,          0.5f, -0.5f, -0.5f,
+        -0.5f, 0.5f, -0.5f,         -0.5f, 0.5f, 0.5f,
+        0.5f, 0.5f, 0.5f,           0.5f, 0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,        -0.5f, 0.5f, -0.5f,
+        0.5f, 0.5f, -0.5f,          0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, 0.5f,         -0.5f, 0.5f, 0.5f,
+        0.5f, 0.5f, 0.5f,           0.5f, -0.5f, 0.5f,
+        -0.5f, -0.5f, -0.5f,        -0.5f, -0.5f, 0.5f,
+        -0.5f, 0.5f, 0.5f,          -0.5f, 0.5f, -0.5f, 
+        0.5f, -0.5f, -0.5f,         0.5f, -0.5f, 0.5f,
+         0.5f, 0.5f, 0.5f,          0.5f, 0.5f, -0.5f
+    ];
+
+    float[72] cubeNormals = [
+        0.2f, -0.5f, 0.2f,
+        0.2f, -0.5f, 0.2f,
+        0.2f, -0.5f, 0.2f,
+        0.2f, -0.5f, 0.2f,
+
+        0.2f, 0.5f, 0.2f,
+        0.2f, 0.5f, 0.2f,
+        0.2f, 0.5f, 0.2f,
+        0.2f, 0.5f, 0.2f,
+
+        0.2f, 0.2f, -0.5f,
+        0.2f, 0.2f, -0.5f,
+        0.2f, 0.2f, -0.5f,
+        0.2f, 0.2f, -0.5f,
+
+        0.2f, 0.2f, 0.5f,
+        0.2f, 0.2f, 0.5f,
+        0.2f, 0.2f, 0.5f,
+        0.2f, 0.2f, 0.5f,
+
+        -0.5f, 0.2f, 0.2f,
+        -0.5f, 0.2f, 0.2f,
+        -0.5f, 0.2f, 0.2f,
+        -0.5f, 0.2f, 0.2f,
+
+        0.5f, 0.2f, 0.2f,
+        0.5f, 0.2f, 0.2f,
+        0.5f, 0.2f, 0.2f,
+        0.5f, 0.2f, 0.2f
+    ];
+
+    //float[72] cubeTex = {0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+    //  0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+    //  1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,};
+
+    float[24 * 6] vertices;
+    int pIdx = 0;
+    int nIdx = 0;
+    //int tIdx = 0;
+    for (int i = 0; i < vertices.length;)
+    {
+        vertices[i++] = cubeVerts[pIdx++];
+        vertices[i++] = cubeVerts[pIdx++];
+        vertices[i++] = cubeVerts[pIdx++];
+        vertices[i++] = cubeNormals[nIdx++];
+        vertices[i++] = cubeNormals[nIdx++];
+        vertices[i++] = cubeNormals[nIdx++];
+        //vertices[i++] = cubeTex[tIdx++];
+        //vertices[i++] = cubeTex[tIdx++];
+    }
+
+    int[36] indices = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 15, 14, 12, 14, 13, 16, 17, 18, 16,
+        18, 19, 20, 23, 22, 20, 22, 21];
+
+    cube.vb.set_data(vertices, 0, vertices.length);
+    cube.ib.set_data(indices, 0, indices.length);
+}

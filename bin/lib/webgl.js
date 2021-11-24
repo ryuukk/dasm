@@ -7,6 +7,7 @@
 
             var GLcounter = 1;
             var GLbuffers = [];
+            var GLvaos = [];
             var GLprograms = [];
             var GLframebuffers = [];
             var GLtextures = [];
@@ -133,7 +134,8 @@
                     }
                 }
             }
-
+            imports.glEnable = function(x0) { MOD.WGL.enable(x0); };
+            imports.glDisable = function(x0) { MOD.WGL.disable(x0); };
             imports.glViewport = (x0, x1, x2, x3) => { MOD.WGL.viewport(x0, x1, x2, x3); };
             imports.glClear = (x0) => { MOD.WGL.clear(x0); };
             imports.glClearColor = (x0, x1, x2, x3) => { MOD.WGL.clearColor(x0, x1, x2, x3); };
@@ -226,7 +228,48 @@
                 }
             };
 
-            
+            // TODO: double check support of VAO
+            imports.glGenVertexArrays = function(n, buffers)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    // TODO: CHECK THIS
+                    // should i really store it in the same glbuffers?
+                    // should i really use getNewId?
+                    var buffer = MOD.WGL.createVertexArray();
+                    if (!buffer)
+                    {
+                        GLrecordError(0x0502); // GL_INVALID_OPERATION
+                        while(i < n) MOD.HEAP32[(((buffers)+(i++*4))>>2)]=0;
+                        return;
+                    }
+                    var id = getNewId(GLvaos);
+                    buffer.name = id;
+                    GLvaos[id] = buffer;
+                    MOD.HEAP32[(((buffers)+(i*4))>>2)]=id;
+                }
+            };
+            imports.glDeleteVertexArrays = function(n, buffers)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var id = MOD.HEAP32[(((buffers)+(i*4))>>2)];
+                    var buffer = GLvaos[id];
+        
+                    // From spec: "glDeleteBuffers silently ignores 0's and names that do not correspond to existing buffer objects."
+                    if (!buffer) continue;
+        
+                    MOD.WGL.deleteVertexArray(buffer);
+                    buffer.name = 0;
+                    GLvaos[id] = null;
+                }
+            };
+            imports.glBindVertexArray = function(target) { 
+                var vao = GLvaos[target];
+                MOD.WGL.bindVertexArray(vao);
+            };
+
+
             imports.glUniformMatrix4fv = function(loc, count, transpose, value)
             {
                 count<<=4;
@@ -405,6 +448,26 @@
                 }
                 else if (length) MOD.HEAP32[((length)>>2)] = 0;
             };
+            
+	        imports.glDrawElements = function(mode, count, type, indices) { MOD.WGL.drawElements(mode, count, type, indices); };
+
+
+
+            imports.glDeleteBuffers = function(n, buffers)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var id = MOD.HEAP32[(((buffers)+(i*4))>>2)];
+                    var buffer = GLbuffers[id];
+        
+                    // From spec: "glDeleteBuffers silently ignores 0's and names that do not correspond to existing buffer objects."
+                    if (!buffer) continue;
+        
+                    MOD.WGL.deleteBuffer(buffer);
+                    buffer.name = 0;
+                    GLbuffers[id] = null;
+                }
+            };
 
             // move that to a math.js file
             
@@ -438,6 +501,10 @@
             
             imports.absf = (value) => {
                 return Math.abs(value);
+            };
+            
+            imports.fmodf = (a, b) => {
+                return a%b;
             };
         }
     });

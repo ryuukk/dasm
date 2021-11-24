@@ -19,281 +19,53 @@ void* realloc(void* ptr, size_t size);
 
 version (WASM)
 {
-	alias uintptr_t = size_t;
+	
+	alias uint32_t = uint;
 
-	enum PAGE_SIZE = (64 * 1024);
-	enum BLOCK_INFO_MAGIC = 0x47f98950;
-	enum BLOCK_INFO_SIZE = (block_info.sizeof);
+__gshared uint32_t[32] freeHeads = 0;
+__gshared uint32_t[32] freeTails = 0;
+__gshared uint32_t freePages = 0;
+__gshared uint32_t freeStart = 0;
+__gshared uint32_t[65536] pageBuckets = 0;
 
-	struct block_info
-	{
-		int magic;
-		block_info* previous;
-		block_info* next;
-		size_t size;
-		bool free;
-	}
 
-	__gshared bool initialized = false;
-	__gshared size_t current_pages;
-	__gshared uintptr_t heap_top;
-	__gshared block_info* first_block;
-	__gshared block_info* last_block;
-	__gshared block_info* first_free_block;
+void* malloc(size_t size) {
+  if (size < 4) size = 4;
+  uint32_t bucket = (bsr(size - 1) ^ 31) + 1;
+  if (freeHeads[bucket] == 0 && freeTails[bucket] == 0) {
+    uint32_t wantPages = (bucket <= 16) ? 1 : (1 << (bucket - 16));
+    if (freePages < wantPages) {
+      uint32_t currentPages = llvm_wasm_memory_size(0);
+      if (freePages == 0) freeStart = currentPages << 16;
+      uint32_t plusPages = currentPages;
+      if (plusPages > 256) plusPages = 256;
+      if (plusPages < wantPages - freePages) plusPages = wantPages - freePages;
+      if (llvm_wasm_memory_grow(0, plusPages) == -1) assert(0);
+	  else update_memory_view();
+      freePages += plusPages;
+    }
+    pageBuckets[freeStart >> 16] = bucket;
+    freeTails[bucket] = freeStart;
+    freeStart += wantPages << 16;
+    freePages -= wantPages;
+  }
+  if (freeHeads[bucket] == 0) {
+    freeHeads[bucket] = freeTails[bucket];
+    freeTails[bucket] += 1 << bucket;
+    if ((freeTails[bucket] & 0xFFFF) == 0) freeTails[bucket] = 0;
+  }
+  uint32_t result = freeHeads[bucket];
+  freeHeads[bucket] = (cast(uint32_t*)(result))[0];
+  return cast(void*)(result);
+}
 
-	bool block_info_valid(block_info* block)
-	{
-		return block.magic == BLOCK_INFO_MAGIC;
-	}
+void free(void* ptr) {
+  uint32_t p = cast(uint32_t)(ptr);
+  size_t bucket = pageBuckets[p >> 16];
+  (cast(uint32_t*)(p))[0] = freeHeads[bucket];
+  freeHeads[bucket] = p;
+}
 
-	void do_initialize()
-	{
-		// #ifdef MALLOC_DEBUG
-		// 	prints("Initializing\n");
-		// #endif
-
-		current_pages = grow_memory(0);
-		heap_top = current_pages * PAGE_SIZE;
-		first_block = null;
-		last_block = null;
-		first_free_block = null;
-
-		initialized = true;
-
-		// #ifdef MALLOC_DEBUG
-		// 	prints("BLOCK_INFO_SIZE: ");
-		// 	printi(BLOCK_INFO_SIZE);
-		// 	printc('\n');
-		// 	prints("Heap start: ");
-		// 	printptr((void *) heap_top);
-		// 	printc('\n');
-		// #endif
-	}
-
-	void initialize()
-	{
-		if (!initialized)
-		{
-			do_initialize();
-		}
-	}
-
-	uintptr_t grow_heap(size_t inc)
-	{
-		uintptr_t old_heap_top = heap_top;
-
-		heap_top += inc;
-
-		uintptr_t heap_max = current_pages * PAGE_SIZE - 1;
-		if (heap_top > heap_max)
-		{
-			size_t diff = heap_top - heap_max;
-			size_t pages = (diff + (PAGE_SIZE - 1)) / PAGE_SIZE;
-			// #ifdef MALLOC_DEBUG
-			// 		prints("Heap too small by ");
-			// 		printi(diff);
-			// 		prints(" bytes, ");
-			// 		printi(pages);
-			// 		prints(" pages");
-			// 		printc('\n');
-			// #endif
-			current_pages = grow_memory(pages) + pages;
-		}
-
-		// #ifdef MALLOC_DEBUG
-		// 	prints("Heap now ends at ");
-		// 	printptr((void *) heap_top);
-		// 	printc('\n');
-		// #endif
-
-		return old_heap_top;
-	}
-
-	void* malloc(size_t size)
-	{
-		initialize();
-
-		block_info* block = first_free_block;
-		while (block != null)
-		{
-			if (block.free)
-			{
-				if (block.size >= size)
-				{
-					// #ifdef MALLOC_DEBUG
-					// 				prints("Found free block with sufficient size\n");
-					// #endif
-					if (block.size - size > BLOCK_INFO_SIZE)
-					{
-						uintptr_t next_block_addr = cast(uintptr_t) block + BLOCK_INFO_SIZE + size;
-
-						block_info* next_block = cast(block_info*) next_block_addr;
-						next_block.magic = BLOCK_INFO_MAGIC;
-						next_block.previous = block;
-						next_block.next = block.next;
-						if (next_block.next)
-							next_block.next.previous = next_block;
-
-						next_block.free = true;
-						next_block.size = block.size - size - BLOCK_INFO_SIZE;
-
-						block.next = next_block;
-						block.size = size;
-
-						first_free_block = next_block;
-					}
-					else
-					{
-						first_free_block = block.next;
-						while (first_free_block != null && !first_free_block.free)
-						{
-							first_free_block = first_free_block.next;
-						}
-					}
-					block.free = false;
-					return cast(void*)(cast(uintptr_t) block + BLOCK_INFO_SIZE);
-				}
-				else if (cast(uintptr_t) block == cast(uintptr_t) last_block)
-				{
-					grow_heap(size - block.size);
-					block.size = size;
-					block.free = false;
-					return cast(void*)(cast(uintptr_t) block + BLOCK_INFO_SIZE);
-				}
-			}
-			block = block.next;
-		}
-
-		// #ifdef MALLOC_DEBUG
-		// 	prints("No free block with sufficient size found\n");
-		// #endif
-
-		block_info* new_block = cast(block_info*) grow_heap(BLOCK_INFO_SIZE + size);
-		new_block.magic = BLOCK_INFO_MAGIC;
-		new_block.previous = last_block;
-		new_block.next = null;
-		new_block.free = false;
-		new_block.size = size;
-
-		if (first_block == null)
-		{
-			first_block = new_block;
-		}
-
-		if (last_block != null)
-		{
-			last_block.next = new_block;
-		}
-		last_block = new_block;
-
-		return cast(void*)(cast(uintptr_t) new_block + BLOCK_INFO_SIZE);
-	}
-
-	void free(void* ptr)
-	{
-		if (!initialized)
-		{
-			// #ifdef MALLOC_DEBUG
-			// 		prints("free(): not yet initialized\n");
-			// #endif		
-			return;
-		}
-
-		block_info* block = cast(block_info*)(cast(uintptr_t) ptr - BLOCK_INFO_SIZE);
-
-		if (!block_info_valid(block))
-		{
-			// #ifdef MALLOC_DEBUG
-			// 		prints("free(): invalid pointer: ");
-			// 		printptr(ptr);
-			// 		printc('\n');
-			// #endif
-			return;
-		}
-
-		if (block.free)
-		{
-			// #ifdef MALLOC_DEBUG
-			// 		prints("free(): double free: ");
-			// 		printptr(ptr);
-			// 		printc('\n');
-			// #endif
-			return;
-		}
-
-		block.free = true;
-
-		// Merge consecutive free blocks
-		if (block.previous && block.previous.free)
-		{
-			block.previous.size += BLOCK_INFO_SIZE + block.size;
-			block.previous.next = block.next;
-			if (block.next)
-				block.next.previous = block.previous;
-			if (cast(uintptr_t) block == cast(uintptr_t) last_block)
-			{
-				last_block = block.previous;
-			}
-			block = block.previous;
-		}
-		if (block.next && block.next.free)
-		{
-			block.size += BLOCK_INFO_SIZE + block.next.size;
-			if (cast(uintptr_t) block.next == cast(uintptr_t) last_block)
-			{
-				last_block = block;
-			}
-			block.next = block.next.next;
-			if (block.next)
-				block.next.previous = block;
-		}
-
-		if (first_free_block == null || cast(uintptr_t) block < cast(uintptr_t) first_free_block)
-		{
-			first_free_block = block;
-		}
-
-		// TODO: if this is the last block, release it
-
-		// #ifdef MALLOC_DEBUG
-		// 	prints("Freed block at ");
-		// 	printptr(ptr);
-		// 	printc('\n');
-		// #endif
-	}
-
-	void* calloc(size_t nmemb, size_t size)
-	{
-		initialize();
-
-		size_t full_size = nmemb * size;
-		if (nmemb != 0 && full_size / nmemb != size)
-		{
-			// #ifdef MALLOC_DEBUG
-			// 		prints("calloc() multiplication overflow: ");
-			// 		printi(nmemb);
-			// 		prints(" * ");
-			// 		printi(size);
-			// 		prints(" > SIZE_MAX\n");
-			// #endif
-			return null;
-		}
-
-		void* ptr = malloc(full_size);
-		if (ptr)
-		{
-			//memset(ptr, 0, full_size);
-		}
-
-		return ptr;
-	}
-
-	void* realloc(void* ptr, size_t size)
-	{
-		initialize();
-		// TODO
-		return null;
-	}
 }
 else
 {
@@ -339,4 +111,155 @@ else
 //		stdc_str.memcpy(dst, src, n);
 //		return dest;
 //	}
+}
+
+
+void[] alloc(size_t size)
+{
+	assert(size > 0);
+	void* ptr = malloc(size);
+	if (!ptr)
+		assert(0, "Out of memory!");
+	return ptr[0 .. size];
+}
+
+T[] alloc_array(T)(size_t count)
+{
+	assert(count > 0, "can't allocate empty array");
+	return cast(T[]) alloc(T.sizeof * count);
+}
+
+
+package:
+
+int bsr(uint v) pure
+{
+    pragma(inline, false);  // so intrinsic detection will work
+    return softBsr!uint(v);
+}
+
+/// ditto
+int bsr(ulong v) pure
+{
+    static if (size_t.sizeof == ulong.sizeof)  // 64 bit code gen
+    {
+        pragma(inline, false);   // so intrinsic detection will work
+        return softBsr!ulong(v);
+    }
+    else
+    {
+        /* intrinsic not available for 32 bit code,
+         * make do with 32 bit bsr
+         */
+        const sv = Split64(v);
+        return (sv.hi == 0)?
+            bsr(sv.lo) :
+            bsr(sv.hi) + 32;
+    }
+}
+
+private alias softBsf(N) = softScan!(N, true);
+private alias softBsr(N) = softScan!(N, false);
+
+/* Shared software fallback implementation for bit scan foward and reverse.
+If forward is true, bsf is computed (the index of the first set bit).
+If forward is false, bsr is computed (the index of the last set bit).
+-1 is returned if no bits are set (v == 0).
+*/
+private int softScan(N, bool forward)(N v) pure
+    if (is(N == uint) || is(N == ulong))
+{
+    // bsf() and bsr() are officially undefined for v == 0.
+    if (!v)
+        return -1;
+
+    // This is essentially an unrolled binary search:
+    enum mask(ulong lo) = forward ? cast(N) lo : cast(N)~lo;
+    enum inc(int up) = forward ? up : -up;
+
+    N x;
+    int ret;
+    static if (is(N == ulong))
+    {
+        x = v & mask!0x0000_0000_FFFF_FFFFL;
+        if (x)
+        {
+            v = x;
+            ret = forward ? 0 : 63;
+        }
+        else
+            ret = forward ? 32 : 31;
+
+        x = v & mask!0x0000_FFFF_0000_FFFFL;
+        if (x)
+            v = x;
+        else
+            ret += inc!16;
+    }
+    else static if (is(N == uint))
+    {
+        x = v & mask!0x0000_FFFF;
+        if (x)
+        {
+            v = x;
+            ret = forward ? 0 : 31;
+        }
+        else
+            ret = forward ? 16 : 15;
+    }
+    else
+        static assert(false);
+
+    x = v & mask!0x00FF_00FF_00FF_00FFL;
+    if (x)
+        v = x;
+    else
+        ret += inc!8;
+
+    x = v & mask!0x0F0F_0F0F_0F0F_0F0FL;
+    if (x)
+        v = x;
+    else
+        ret += inc!4;
+
+    x = v & mask!0x3333_3333_3333_3333L;
+    if (x)
+        v = x;
+    else
+        ret += inc!2;
+
+    x = v & mask!0x5555_5555_5555_5555L;
+    if (!x)
+        ret += inc!1;
+
+    return ret;
+}
+private union Split64
+{
+    ulong u64;
+    struct
+    {
+        version (LittleEndian)
+        {
+            uint lo;
+            uint hi;
+        }
+        else
+        {
+            uint hi;
+            uint lo;
+        }
+    }
+
+    pragma(inline, true)
+    this(ulong u64) @safe pure nothrow @nogc
+    {
+        if (__ctfe)
+        {
+            lo = cast(uint) u64;
+            hi = cast(uint) (u64 >>> 32);
+        }
+        else
+            this.u64 = u64;
+    }
 }

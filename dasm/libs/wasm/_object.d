@@ -30,24 +30,22 @@ private extern extern(C) ubyte __data_end;
 		return OLD size in 64 KB pages, or size_t.max if it failed.
 	+/
 	pragma(LDC_intrinsic, "llvm.wasm.memory.grow.i32")
-	private int llvm_wasm_memory_grow(int mem, int delta);
+	int llvm_wasm_memory_grow(int mem, int delta);
 
 
 	// in 64 KB pages
 	pragma(LDC_intrinsic, "llvm.wasm.memory.size.i32")
-	private int llvm_wasm_memory_size(int mem);
+	int llvm_wasm_memory_size(int mem);
 // }
 
-
-size_t grow_memory(size_t pages) {
-	return llvm_wasm_memory_grow(0, pages);
-}
 
 
 
 
 extern(C) int _Dmain(string[] args);
-export extern(C) void _start() { _Dmain(null); }
+export extern(C) void _start() {
+	 _Dmain(null);
+}
 extern(C) bool _xopEquals(in void*, in void*) { return false; } // assert(0);
 
 
@@ -412,4 +410,25 @@ if (!__traits(isScalar, T1) || !__traits(isScalar, T2))
         }
         return true;
     }
+}
+
+TTo[] __ArrayCast(TFrom, TTo)(return scope TFrom[] from)
+{
+    const fromSize = from.length * TFrom.sizeof;
+    const toLength = fromSize / TTo.sizeof;
+
+    if ((fromSize % TTo.sizeof) != 0)
+    {
+        //onArrayCastError(TFrom.stringof, fromSize, TTo.stringof, toLength * TTo.sizeof);
+		wasm.abort();
+    }
+
+    struct Array
+    {
+        size_t length;
+        void* ptr;
+    }
+    auto a = cast(Array*)&from;
+    a.length = toLength; // jam new length
+    return *cast(TTo[]*)a;
 }

@@ -22,9 +22,24 @@
             ABORT = true;
             console.error("-- ASSERT --");
         },
-           _d_assert: (file,line) => {
+        _d_assert: (file,line) => {
             ABORT = true;
             console.error("-- D_ASSERT --");
+        },
+        _d_assert_msg: (msg, file, line) => {
+            ABORT = true;
+            console.error("-- D_ASSERT_MSG");
+        },
+        update_memory_view: () => {
+            var memory = MOD.WA.exports.memory;
+            MOD.HEAP8 = new Int8Array(memory.buffer);
+            MOD.HEAPU8 = new Uint8Array(memory.buffer);
+            MOD.HEAP16 = new Int16Array(memory.buffer);
+            MOD.HEAPU16 = new Uint16Array(memory.buffer);
+            MOD.HEAP32 = new Uint32Array(memory.buffer);
+            MOD.HEAPU32 = new Uint32Array(memory.buffer);
+            MOD.HEAPF32 = new Float32Array(memory.buffer);
+            MOD.HEAPF64 = new Float64Array(memory.buffer);
         },
     };
 
@@ -77,7 +92,16 @@
         var draw_func_ex = () => {
              if (ABORT) return;
               window.requestAnimationFrame(draw_func_ex);
-              MOD.WA.exports.WA_render(); 
+
+              // TODO: remove try catch on release build
+              try {
+                MOD.WA.exports.WA_render(); 
+              } catch (error) {
+                  ABORT = true;
+                  var sts = document.getElementById("wa_status");
+                  sts.textContent = "Status: Errpr";
+                  console.error("error bro: ", error);
+              }
         };
         
         window.requestAnimationFrame(draw_func_ex);
@@ -123,6 +147,10 @@
 
             // call _start
             exports._start();
+        })
+        .catch(error=>{
+          console.error('there was some error; ', error)
+          ABORT = true;
         });
 
 })(MOD);

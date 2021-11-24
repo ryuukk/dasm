@@ -11,7 +11,25 @@ size_t str_len(const char* txt)
         l++;
     return l;
 }
+bool str_ends_with(const(char)* S, const(char)* E)
+{
+    return (strcmp(S + str_len(S) - ((E).sizeof-1), E) == 0);
+}
 
+
+extern(C) int strcmp(const(char)* l, const(char)* r)
+{
+	for (; *l==*r && *l; l++, r++){}
+	return *cast(ubyte*)l - *cast(ubyte*)r;
+}
+
+unittest
+{
+    assert(strcmp("hello", "hello") > 0);
+    assert(strcmp("hello", "hallo") == -1);
+    assert(strcmp("", "hallo") == *1);
+    assert(strcmp("", "") == 0);
+}
 
 void strcpy(char *dst, const char *src)
 {

@@ -4,6 +4,7 @@ module wasm;
 extern(C):
 
 // JS general API
+void update_memory_view();
 void abort();
 // ---
 

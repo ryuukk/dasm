@@ -361,7 +361,7 @@ void glCompileShader(GLuint shader);
 GLuint glCreateProgram();
 GLuint glCreateShader(GLenum type);
 // void glCullFace ( GLenum );
-// void glDeleteBuffers ( GLsizei, const GLuint* );
+void glDeleteBuffers ( GLsizei, const GLuint* );
 // void glDeleteFramebuffers ( GLsizei, const GLuint* );
 // void glDeleteProgram ( GLuint );
 // void glDeleteRenderbuffers ( GLsizei, const GLuint* );
@@ -477,3 +477,9 @@ void glUseProgram(GLuint program);
 // void glVertexAttrib4fv ( GLuint, const GLfloat* );
 void glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, GLintptr offset);
 void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+
+
+void glGenVertexArrays(GLsizei n, GLuint *arrays);
+void glDeleteVertexArrays(GLsizei n, const(GLuint) *arrays);
+void glBindVertexArray(	GLuint array);
+void glDrawElements(GLenum,GLsizei,GLenum,const(GLvoid)*);
