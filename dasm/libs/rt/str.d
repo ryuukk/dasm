@@ -1,6 +1,7 @@
 module str;
 
 import memory;
+import dbg;
 
 
 size_t str_len(const char* txt)
@@ -12,9 +13,13 @@ size_t str_len(const char* txt)
 }
 
 
-char* strcpy(char *dest, const char *src)
+void strcpy(char *dst, const char *src)
 {
-  return cast(char*)memcpy(cast(void*)dest, cast(void*)src, str_len(src) + 1);
+    assert(dst);
+    assert(src);
+
+    auto l = str_len(src) + 1;
+    memcpy(cast(void*)dst, cast(const(void)*)src, l);
 }
 
 

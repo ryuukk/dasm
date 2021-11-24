@@ -2,6 +2,7 @@
 	"name": "game",
 	"targetType": "executable",
 	"sourcePaths": [ "src" ],
+	"importPaths": [ "src" ],
 
 	"configurations": [
 		{
@@ -24,12 +25,16 @@
 			"dflags-ldc": [
 				"--fvisibility=hidden",
 				"-linkonce-templates", 
-				"-i=core", "-i=std", "-i=src", "-I=src"
+				"-preview=intpromote",
+				"-preview=rvaluerefparam"
 			],
-			"lflags-ldc": [ "-allow-undefined" ],
+			"lflags-ldc": [ 
+				"-L-z stack-size=1048576",
+
+				"-allow-undefined"
+			 ],
 
 			"targetPath": "../../bin",
-			"workingDirectory": "../../bin",
 			"versions": [ "GAME", "WASM" ],
 
 			"dependencies": {

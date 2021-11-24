@@ -40,9 +40,24 @@
                 }
                 // split up into chunks, because .apply on a huge string can overflow the stack
                 for (var ret = '', curr; length > 0; ptr += 1024, length -= 1024)
-                    ret += String.fromCharCode.apply(String, MOD.HEAPU8.slice(ptr, ptr + Math.min(length, 1024)));
+                    ret += String.fromCharCode.apply(String, MOD.HEAPU8.subarray(ptr, ptr + Math.min(length, 1024)));
                 return ret;
             }
+            function WriteHeapString(str, ptr, max_length)
+            {
+                for (var e=str,r=MOD.HEAPU8,f=ptr,i=(max_length?max_length:MOD.HEAPU8.length),a=f,t=f+i-1,b=0;b<e.length;++b)
+                {
+                    var k=e.charCodeAt(b);
+                    if(55296<=k&&k<=57343&&(k=65536+((1023&k)<<10)|1023&e.charCodeAt(++b)),k<=127){if(t<=f)break;r[f++]=k;}
+                    else if(k<=2047){if(t<=f+1)break;r[f++]=192|k>>6,r[f++]=128|63&k;}
+                    else if(k<=65535){if(t<=f+2)break;r[f++]=224|k>>12,r[f++]=128|k>>6&63,r[f++]=128|63&k;}
+                    else if(k<=2097151){if(t<=f+3)break;r[f++]=240|k>>18,r[f++]=128|k>>12&63,r[f++]=128|k>>6&63,r[f++]=128|63&k;}
+                    else if(k<=67108863){if(t<=f+4)break;r[f++]=248|k>>24,r[f++]=128|k>>18&63,r[f++]=128|k>>12&63,r[f++]=128|k>>6&63,r[f++]=128|63&k;}
+                    else{if(t<=f+5)break;r[f++]=252|k>>30,r[f++]=128|k>>24&63,r[f++]=128|k>>18&63,r[f++]=128|k>>12&63,r[f++]=128|k>>6&63,r[f++]=128|63&k;}
+                }
+                return r[f]=0,f-a;
+            }
+
             function getNewId(table)
             {
                 var ret = GLcounter++;
@@ -94,7 +109,7 @@
                     if (name.indexOf(']', name.length-1) !== -1)
                     {
                         var ls = name.lastIndexOf('[');
-                        name = name.slice(0, ls);
+                        name = name.subarray(0, ls);
                     }
         
                     // Optimize memory usage slightly: If we have an array of uniforms, e.g. 'vec3 colors[3];', then
@@ -147,13 +162,13 @@
                 {
                     // If user passed an array accessor "[index]", parse the array index off the accessor.
                     var ls = name.lastIndexOf('[');
-                    var arrayIndex = name.slice(ls+1, -1);
+                    var arrayIndex = name.subarray(ls+1, -1);
                     if (arrayIndex.length > 0)
                     {
                         arrayOffset = parseInt(arrayIndex);
                         if (arrayOffset < 0) return -1;
                     }
-                    name = name.slice(0, ls);
+                    name = name.subarray(0, ls);
                 }
 
                 var ptable = GLprogramInfos[program];
@@ -228,18 +243,168 @@
                         view[i+3] = MOD.HEAPF32[ptr+i+3];
                     }
                 }
-                else view = MOD.HEAPF32.slice((value)>>2,(value+count*4)>>2);
+                else view = MOD.HEAPF32.subarray((value)>>2,(value+count*4)>>2);
                 MOD.WGL.uniformMatrix4fv(GLuniforms[loc], !!transpose, view);
             };
 
             imports.glBufferData = function(target, size, data, usage)
             {
                 if (!data) MOD.WGL.bufferData(target, size, usage);
-                else MOD.WGL.bufferData(target, MOD.HEAPU8.slice(data, data+size), usage);
+                else MOD.WGL.bufferData(target, MOD.HEAPU8.subarray(data, data+size), usage);
             };
 
             imports.glDrawArrays = function(mode, first, count) { MOD.WGL.drawArrays(mode, first, count); };
+            imports.glGetShaderiv = function(shader, pname, p)
+            {
+                if (!p)
+                {
+                    // GLES2 specification does not specify how to behave if p is a null pointer. Since calling this function does not make sense
+                    // if p == null, issue a GL error to notify user about it.
+                    GLrecordError(0x0501); // GL_INVALID_VALUE
+                    return;
+                }
+                if (pname == 0x8B84) // GL_INFO_LOG_LENGTH
+                {
+                    var log = MOD.WGL.getShaderInfoLog(GLshaders[shader]);
+                    if (log === null) log = '(unknown error)';
+                    MOD.HEAP32[((p)>>2)] = log.length + 1;
+                }
+                else if (pname == 0x8B88) // GL_SHADER_SOURCE_LENGTH
+                {
+                    var source = GLctx.getShaderSource(GLshaders[shader]);
+                    var sourceLength = (source === null || source.length == 0) ? 0 : source.length + 1;
+                    MOD.HEAP32[((p)>>2)] = sourceLength;
+                }
+                else MOD.HEAP32[((p)>>2)] = MOD.WGL.getShaderParameter(GLshaders[shader], pname);
+            };
+        
+            imports.glGetProgramInfoLog = function(program, maxLength, length, infoLog)
+            {
+                var log = MOD.WGL.getProgramInfoLog(GLprograms[program]);
+                if (log === null) log = '(unknown error)';
+                if (maxLength > 0 && infoLog)
+                {
+                    var numBytesWrittenExclNull = WriteHeapString(log, infoLog, maxLength);
+                    if (length) MOD.HEAP32[((length)>>2)]=numBytesWrittenExclNull;
+                }
+                else if (length) MOD.HEAP32[((length)>>2)]=0;
+            };
 
+            
+            imports.glGetProgramiv = function(program, pname, p)
+            {
+                if (!p)
+                {
+                    // GLES2 specification does not specify how to behave if p is a null pointer. Since calling this function does not make sense
+                    // if p == null, issue a GL error to notify user about it.
+                    GLrecordError(0x0501); // GL_INVALID_VALUE
+                    return;
+                }
+        
+                if (program >= GLcounter)
+                {
+                    GLrecordError(0x0501); // GL_INVALID_VALUE
+                    return;
+                }
+        
+                var ptable = GLprogramInfos[program];
+                if (!ptable)
+                {
+                    GLrecordError(0x0502); //GL_INVALID_OPERATION
+                    return;
+                }
+        
+                if (pname == 0x8B84) // GL_INFO_LOG_LENGTH
+                {
+                    var log = MOD.WGL.getProgramInfoLog(GLprograms[program]);
+                    if (log === null) log = '(unknown error)';
+                    MOD.HEAP32[((p)>>2)] = log.length + 1;
+                }
+                else if (pname == 0x8B87) //GL_ACTIVE_UNIFORM_MAX_LENGTH
+                {
+                    MOD.HEAP32[((p)>>2)] = ptable.maxUniformLength;
+                }
+                else if (pname == 0x8B8A) //GL_ACTIVE_ATTRIBUTE_MAX_LENGTH
+                {
+                    if (ptable.maxAttributeLength == -1)
+                    {
+                        program = GLprograms[program];
+                        var numAttribs = MOD.WGL.getProgramParameter(program, MOD.WGL.ACTIVE_ATTRIBUTES);
+                        ptable.maxAttributeLength = 0; // Spec says if there are no active attribs, 0 must be returned.
+                        for (var i = 0; i < numAttribs; ++i)
+                        {
+                            var activeAttrib = MOD.WGL.getActiveAttrib(program, i);
+                            ptable.maxAttributeLength = Math.max(ptable.maxAttributeLength, activeAttrib.name.length+1);
+                        }
+                    }
+                    MOD.HEAP32[((p)>>2)] = ptable.maxAttributeLength;
+                }
+                else if (pname == 0x8A35) //GL_ACTIVE_UNIFORM_BLOCK_MAX_NAME_LENGTH
+                {
+                    if (ptable.maxUniformBlockNameLength == -1)
+                    {
+                        program = GLprograms[program];
+                        var numBlocks = MOD.WGL.getProgramParameter(program, MOD.WGL.ACTIVE_UNIFORM_BLOCKS);
+                        ptable.maxUniformBlockNameLength = 0;
+                        for (var i = 0; i < numBlocks; ++i)
+                        {
+                            var activeBlockName = MOD.WGL.getActiveUniformBlockName(program, i);
+                            ptable.maxUniformBlockNameLength = Math.max(ptable.maxUniformBlockNameLength, activeBlockName.length+1);
+                        }
+                    }
+                    MOD.HEAP32[((p)>>2)] = ptable.maxUniformBlockNameLength;
+                }
+                else
+                {
+                    MOD.HEAP32[((p)>>2)] = MOD.WGL.getProgramParameter(GLprograms[program], pname);
+                }
+            };
+            imports.glGetActiveUniform = function(program, index, bufSize, length, size, type, name)
+            {
+                program = GLprograms[program];
+                var info = MOD.WGL.getActiveUniform(program, index);
+                if (!info) return; // If an error occurs, nothing will be written to length, size, type and name.
+        
+                if (bufSize > 0 && name)
+                {
+                    var numBytesWrittenExclNull = WriteHeapString(info.name, name, bufSize);
+                    if (length) MOD.HEAP32[((length)>>2)]=numBytesWrittenExclNull;
+                } else {
+                    if (length) MOD.HEAP32[((length)>>2)]=0;
+                }
+        
+                if (size) MOD.HEAP32[((size)>>2)]=info.size;
+                if (type) MOD.HEAP32[((type)>>2)]=info.type;
+            };
+            imports.glGetActiveAttrib = function(program, index, bufSize, length, size, type, name)
+            {
+                program = GLprograms[program];
+                var info = MOD.WGL.getActiveAttrib(program, index);
+                if (!info) return; // If an error occurs, nothing will be written to length, size, type and name.
+        
+                if (bufSize > 0 && name)
+                {
+                    var numBytesWrittenExclNull = WriteHeapString(info.name, name, bufSize);
+                    if (length) MOD.HEAP32[((length)>>2)]=numBytesWrittenExclNull;
+                } else {
+                    if (length) MOD.HEAP32[((length)>>2)]=0;
+                }
+        
+                if (size) MOD.HEAP32[((size)>>2)]=info.size;
+                if (type) MOD.HEAP32[((type)>>2)]=info.type;
+            };
+
+            imports.glGetShaderInfoLog = function(shader, maxLength, length, infoLog)
+            {
+                var log = MOD.WGL.getShaderInfoLog(GLshaders[shader]);
+                if (log === null) log = '(unknown error)';
+                if (maxLength > 0 && infoLog)
+                {
+                    var numBytesWrittenExclNull = WriteHeapString(log, infoLog, maxLength);
+                    if (length) MOD.HEAP32[((length)>>2)] = numBytesWrittenExclNull;
+                }
+                else if (length) MOD.HEAP32[((length)>>2)] = 0;
+            };
 
             // move that to a math.js file
             
@@ -263,7 +428,17 @@
             imports.abs = (value) => {
                 return Math.abs(value);
             };
+            imports.acosf = (value) => {
+                return Math.acos(value);
+            };
 
+            imports.tanf = (value) => {
+                return Math.tan(value);
+            };
+            
+            imports.absf = (value) => {
+                return Math.abs(value);
+            };
         }
     });
 

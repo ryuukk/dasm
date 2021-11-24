@@ -72,7 +72,6 @@ void writeln(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line
     else
         printf("[%s:%d] ", file.ptr, line);
 
-
     writef_impl(fmt, args);
 
     version(WASM) 
@@ -96,6 +95,7 @@ void writef(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line 
 
     writef_impl(fmt, args);
 }
+
 void writef_impl(Char, A...)(in Char[] fmt, A args)
 {
     enum bool isSomeString(T) = is(immutable T == immutable C[], C) && (is(C == char) || is(C == wchar) || is(C == dchar));
@@ -122,6 +122,7 @@ void writef_impl(Char, A...)(in Char[] fmt, A args)
 
     bool inside = false;
     size_t c;
+
 
     foreach (a; args)
     {
@@ -169,10 +170,19 @@ void writef_impl(Char, A...)(in Char[] fmt, A args)
                     }
                 }
                 else static if (isSomeString!T)
-            		print_str(a.ptr);
+            	{
+                    auto l = str_len(a.ptr);
+                    print_str_len(a.ptr, l);
+                }
         		else static if (is(T : const(char)*))
         		{
-            		print_str(a);
+                    auto l = str_len(a);
+            		print_str_len(a, l);
+        		}
+        		else static if (is(T : const(char)[]))
+        		{
+                    auto l = str_len(a.ptr);
+            		print_str_len(a.ptr, l);
         		}
         		else static if (isPointer!T)
         		{
@@ -180,7 +190,11 @@ void writef_impl(Char, A...)(in Char[] fmt, A args)
             		print_ptr(a);
         		}
                 else
-                	print_str("[?]");
+                {
+                    print_str("[?:");
+                    print_str(T.stringof);
+                    print_str("]");
+                }
             }
             else if (f == '}')
             {

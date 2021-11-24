@@ -13,6 +13,7 @@ enum float PIDIV2 = PI / 2;
 enum float DEG2RAD = PI / 180.0f;
 enum float RAD2DEG = 180.0f / PI;
 
+enum isFloatingPoint(T) = __traits(isFloating, T) && is(T : real);
 
 version (WASM)
 {
@@ -22,12 +23,24 @@ version (WASM)
     float cosf(float);
     pragma(LDC_intrinsic, "llvm.sinf.f32")
     float sinf(float);
+
+    float acosf(float value);
+    float tanf(float value);
+    float absf(float value);
 }
 else
 {
+    import cmath = core.stdc.math;
+
+    float acosf(float value)
+    {
+        return cmath.acosf(value);
+    }
+
+
     float sqrt(float value)
     {
-        core.math.sqrt(value);
+        return core.math.sqrt(value);
     }
 
     float sinf(float value)
@@ -39,28 +52,32 @@ else
     {
         return core.math.costf(value);
     }
+
+    float tanf(float value)
+    {
+        return cmath.tanf(value);
+    }
+
+    float absf(float value)
+    {
+        return cmath.fabs(value);
+    }
+
 }
 
-
-
-float acosf(float value)
+auto abs(Num)(Num x)
+if ((is(immutable Num == immutable short) || is(immutable Num == immutable byte)) ||
+    (is(typeof(Num.init >= 0)) && is(typeof(-Num.init))))
 {
-    version (WASM)
-        return 0;
-    else return 0;
-}
-float tanf(float value)
-{
-    version (WASM)
-        return 0;
-    else return 0;
-}
-
-float abs(float value)
-{
-    version (WASM)
-        return 0;
-    else return 0;
+    static if (isFloatingPoint!(Num))
+        return absf(x);
+    else
+    {
+        static if (is(immutable Num == immutable short) || is(immutable Num == immutable byte))
+            return x >= 0 ? x : cast(Num) -int(x);
+        else
+            return x >= 0 ? x : -x;
+    }
 }
 
 struct v2

@@ -5,11 +5,12 @@ import gl;
 import math;
 import str;
 
-
 enum LocType : byte
 {
     ATTRIBUTE, UNIFORM
 }
+
+
 
 struct ShaderLoc 
 {
@@ -60,6 +61,7 @@ struct ShaderProgram {
     {
         glGetProgramiv(program, GL_ACTIVE_ATTRIBUTES, &num_attributes);
         //LINFO("Attributes: %i", num_attributes);
+        writeln("Attributes: {}", num_attributes);
         char[128] buffer = 0;
         int i = 0;
         while (i < num_attributes) {
@@ -68,12 +70,17 @@ struct ShaderProgram {
             int length = 0;
 
             buffer = 0;
-            glGetActiveAttrib(program, i, 128, &length, &size, &typee, buffer.ptr);
+            
+            glGetActiveAttrib(program, i, buffer.length, &length, &size, &typee, buffer.ptr);
+
+            assert(str_len(buffer.ptr) != 0);
 
             auto sl = ShaderLoc();
             sl.loc_type = LocType.ATTRIBUTE;
             //sl.name[0 .. length + 1] = buffer[0 .. length + 1];
             sl.name = 0;
+
+            
             strcpy(sl.name.ptr, buffer.ptr);
 
             int location = glGetAttribLocation(program, buffer.ptr);
@@ -86,6 +93,7 @@ struct ShaderProgram {
             attributes[i] = sl;
 
             //LINFO("    attribute: loc: %i name: %s", location, sl.name.ptr);
+            writeln("atrib: {} - {}", location, sl.name);
             i += 1;
         }
     }
@@ -94,7 +102,8 @@ struct ShaderProgram {
     {
         glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &num_uniforms);
         // LINFO("Uniforms: %i", num_uniforms);
-        char[128] buffer = 0;
+        writeln("Uniforms: {}", num_uniforms);
+        char[96] buffer = 0;
         int i = 0;
         while (i < num_uniforms) {
             uint typee = 0;
@@ -103,6 +112,9 @@ struct ShaderProgram {
 
             buffer = 0;
             glGetActiveUniform(program, i, 128, &length, &size, &typee, buffer.ptr);
+
+            assert(str_len(buffer.ptr) != 0);
+            
 
             auto sl = ShaderLoc();
             sl.loc_type = LocType.UNIFORM;
@@ -121,6 +133,8 @@ struct ShaderProgram {
             uniforms[i] = sl;
 
             // LINFO("    uniform: loc: %i name: %s", location, sl.name.ptr);
+            writeln("uniform: {} - {}", location, sl.name);
+
             i += 1;
         }
     }
@@ -254,8 +268,7 @@ struct ShaderProgram {
         // @intToPtr(?*const c_void, @intCast(usize, orr))
         //debug checkGLError("set_vert_attr pre");
         glVertexAttribPointer(cast(uint)location, size, gltype, norm? GL_TRUE : GL_FALSE, stride, cast(const(void)*) offset);
-        debug check_gl_error(false);
-
+        version(CHECK_GL) check_gl_error(false);
     }
 
     int fetch_uniform_location(const(char)[] name, bool pedantic) {

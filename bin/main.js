@@ -5,7 +5,7 @@
     var initTime;
     
     const memory = new WebAssembly.Memory({
-        initial: 256,
+        initial: 128,
         maximum: 512
     });
     const heap = new Uint8Array(memory.buffer);
@@ -44,7 +44,7 @@
         {
             let onContextCreationError = (event) => { errorInfo = event.statusMessage || errorInfo; };
             canvas.addEventListener('webglcontextcreationerror', onContextCreationError, false);
-            try { MOD.WGL = canvas.getContext('webgl', attr) || canvas.getContext('experimental-webgl', attr); }
+            try { MOD.WGL = canvas.getContext('webgl2', attr) || canvas.getContext('webgl', attr); }
             finally { canvas.removeEventListener('webglcontextcreationerror', onContextCreationError, false); }
             if (!MOD.WGL) throw 'Could not create context';
             else console.log("JS: WGL ok");
@@ -91,7 +91,7 @@
         env: env,
     };
 
-    WebAssembly.instantiateStreaming(fetch("./game.wasm"), importObject)
+    WebAssembly.instantiateStreaming(fetch("./game.wasm",{ credentials: "same-origin" }), importObject)
         .then(result => {
 
             console.log('JS: Loaded wasm file');

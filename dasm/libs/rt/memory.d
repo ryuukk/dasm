@@ -328,16 +328,15 @@ void* memset(void* s, int c, size_t n)
 	return s;
 }
 
-void* memcpy(void* dst, const void* src, size_t n) {
-
-	version(WASM)
-	{
-		llvm_memcpy(dst, src, n);
-		return dst;
-	}
-	else
-	{
-		stdc_str.memcpy(dst, src, n);
-		return dest;
-	}
+version (WASM)
+{
+	
+}
+else
+{
+//	void* memcpy(void* dst, const void* src, size_t n)
+//	{
+//		stdc_str.memcpy(dst, src, n);
+//		return dest;
+//	}
 }

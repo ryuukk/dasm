@@ -1,19 +1,12 @@
-#!/usr/bin/env python3
-
-import http.server
-import socketserver
-
-PORT = 8000
-
-Handler = http.server.SimpleHTTPRequestHandler
-Handler.extensions_map.update({
-    '.wasm': 'application/wasm',
-})
+from functools import partial
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from pathlib import Path
 
 
-
-socketserver.TCPServer.allow_reuse_address = True
-with socketserver.TCPServer(("", PORT), Handler) as httpd:
-    httpd.allow_reuse_address = True
-    print("serving at http://localhost:", PORT, sep='')
+def start_httpd(directory: Path, port: int = 8000):
+    print(f"serving from {directory}...")
+    handler = partial(SimpleHTTPRequestHandler, directory=directory)
+    httpd = HTTPServer(('localhost', port), handler)
     httpd.serve_forever()
+
+start_httpd("./bin/")

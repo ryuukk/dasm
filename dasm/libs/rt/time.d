@@ -1,4 +1,4 @@
-module dawn.src.time;
+module time;
 
 version(WASM)
 {
@@ -12,5 +12,6 @@ else
 
 uint get_time()
 {
-    return 0;
+    version(WASM) return WAJS_get_time();
+    else return 0;
 }

@@ -2,5 +2,10 @@
 	"name": "gfx",
 	"targetType": "sourceLibrary",
     "sourcePaths": [ "." ],
-	"importPaths": [ "." ]
+	"importPaths": [ "." ],
+
+	
+	"dependencies": {
+		"rt": { "path": "../rt", "version": "*" }
+	}
 }
