@@ -1,5 +1,11 @@
 module gl;
 
+version(DESKTOP)
+{
+    public import bindbc.opengl;
+}
+
+version(WASM):
 extern (C):
 
 struct __GLsync;

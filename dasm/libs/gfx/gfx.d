@@ -4,7 +4,13 @@ import dbg;
 import time;
 import math;
 
+import gl;
+
 version(WASM) import wasm;
+version(DESKTOP) 
+{
+    import glfw;
+}
 
 void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_t tcb)
 {
@@ -17,9 +23,153 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
     engine.exit_cb = ecb;
     engine.tick_cb = tcb;
 
-    version(WASM) WAJS_setup_canvas(width, height);
+    version(WASM)
+    {
+        WAJS_setup_canvas(width, height);
+        icb(&engine);
+    }
+    else
+    {
+        if (!glfwInit())
+        {
+            panic("Unable to init glfw");
+        }
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+        glfwWindowHint(GLFW_RESIZABLE, 1);
 
-    icb(&engine);
+        // delay window opening to avoid positioning glitch and white window
+        glfwWindowHint(GLFW_VISIBLE, 0);
+
+        engine.window_ptr = glfwCreateWindow(width, height, "-game-", null, null);
+        if (!engine.window_ptr)
+        {
+            panic("Unnable to create window");
+            glfwTerminate();
+        }
+		auto primaryMonitor = glfwGetPrimaryMonitor();
+
+        
+		auto vidMode = glfwGetVideoMode(primaryMonitor);
+
+		int windowWidth = 0;
+		int windowHeight = 0;
+		glfwGetWindowSize(engine.window_ptr, &windowWidth, &windowHeight);
+
+		int windowX = vidMode.width / 2 - windowWidth / 2;
+		int windowY = vidMode.height / 2 - windowHeight / 2;
+		glfwSetWindowPos(engine.window_ptr, windowX, windowY);
+
+
+            
+        glfwMakeContextCurrent(engine.window_ptr);
+        glfwSwapInterval(1);
+
+        update_backbuffer_info();
+
+        GLSupport retVal = loadOpenGL();
+
+        // delay window opening to avoid positioning glitch and white window
+        glClearColor(0.0f,0.0f,0.0f,1.0f);
+        glfwSwapBuffers(engine.window_ptr);
+        glfwShowWindow(engine.window_ptr);
+
+            
+        glViewport(0, 0, cast(int)engine.width, cast(int)engine.height);
+
+        glfwSetFramebufferSizeCallback(engine.window_ptr, &on_fb_size);
+
+        // window specific callbacks
+        glfwSetWindowFocusCallback(engine.window_ptr, &focusCallback);
+        glfwSetWindowIconifyCallback(engine.window_ptr, &iconifyCallback);
+        //glfwSetWindowMaximizeCallback(engine, &maximizeCallback);
+        glfwSetWindowCloseCallback(engine.window_ptr, &closeCallback);
+        glfwSetWindowRefreshCallback(engine.window_ptr, &refreshCallback);
+
+
+        icb(&engine);
+
+
+        while (!engine.closed)
+        {
+            glfwMakeContextCurrent(engine.window_ptr);
+            glfwSwapInterval(1);
+            engine.track();
+            engine.tick_cb(&engine, engine.delta_time);
+
+            if (engine.iconified == false)
+                engine.input.prepare_next();
+            
+            engine.queue.clear();
+
+            glfwPollEvents();
+            glfwSwapBuffers(engine.window_ptr);
+
+            engine.closed = glfwWindowShouldClose(engine.window_ptr) == 1;
+        }
+
+        engine.exit_cb(&engine);
+    }
+}
+
+version (DESKTOP)
+{
+
+private // GFX callbacks
+{
+    void update_backbuffer_info()
+    {
+        auto window_ptr = engine.window_ptr;
+    	glfwGetFramebufferSize(window_ptr, &engine.back_buffer_width, &engine.back_buffer_height);
+    	glfwGetWindowSize(window_ptr, &engine.logical_width, &engine.logical_height);
+    }
+
+    extern (C) void on_fb_size(GLFWwindow* window, int width, int height)
+    {
+        Engine* self = &engine;
+
+        glViewport(0, 0, width, height);
+
+        update_backbuffer_info();
+        self.queue.resize(width, height);
+
+        // TODO: i just need to render the scene so it doesn't flicker, this is WRONG
+        //self.on_tick(self, self.gfx.delta_time);
+
+        glfwSwapBuffers(window);
+    }
+
+    extern (C) void focusCallback(GLFWwindow* window, int focused)
+    {
+    }
+
+    extern (C) void iconifyCallback(GLFWwindow* window, int iconified)
+    {
+    }
+
+    extern (C) void maximizeCallback(GLFWwindow* window, int maximized)
+    {
+    }
+
+    extern (C) void closeCallback(GLFWwindow* window)
+    {
+    }
+
+    extern (C) void dropCallback(GLFWwindow* window, int count, const(char*)* names)
+    {
+        for (int i = 0; i < count; i++)
+        {
+        }
+    }
+
+    extern (C) void refreshCallback(GLFWwindow* window)
+    {
+    }
+}
+
 }
 
 Engine engine;
@@ -30,7 +180,7 @@ alias on_tick_t = void function(Engine*, float);
 
 struct Engine
 {
-    version(DESKTOP) GlfwWindow* window_ptr;
+    version(DESKTOP) GLFWwindow* window_ptr;
     
     int back_buffer_width = -1;
     int back_buffer_height = -1;
@@ -39,6 +189,7 @@ struct Engine
 
     bool vsync = true;
     bool iconified;
+    bool closed;
 
     on_init_t init_cb;
     on_exit_t exit_cb;

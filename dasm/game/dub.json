@@ -10,14 +10,33 @@
 			"targetName": "game",
 			"targetPath": "../../bin",
 			"workingDirectory": "../../bin",
-			"versions": [ "GAME", "DESKTOP" ],
-			"libs": ["opengl32", "gdi32"],
+			"versions": [ "GAME", "DESKTOP", "GL_30"],
+			"libs": [
+				"user32",
+				"gdi32",
+				"shell32",
+				"ws2_32",
+				"Winmm",
+			],
+			
+			"sourceFiles-windows": [
+				"../libs/glfw/glfw3.lib",
+			],
 
+			"lflags-windows": [
+				"/NODEFAULTLIB:libcmt.lib"
+			],
 			"dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
 				"gfx": { "path": "../libs/gfx", "version": "*" },
 				"glfw": { "path": "../libs/glfw", "version": "*" },
-			}
+
+				"bindbc-opengl": "~>1.0.0",
+			},
+						
+			"subConfigurations": {
+				"bindbc-opengl": "dynamicBC"
+			},
 		},
 		{
 			"name": "game-wasm",

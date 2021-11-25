@@ -6,9 +6,9 @@ import time;
 
 import mesh;
 import camera;
+import fs;
 
 const(char)[] shader_v = q{
-	precision lowp float;
 	uniform mat4 u_mvp;
 	uniform mat4 u_transform;
 	attribute vec4 a_position;
@@ -22,14 +22,13 @@ const(char)[] shader_v = q{
 };
 
 const(char)[] shader_f = q{
-	precision lowp float;
 	varying vec3 v_col;
 	void main()
 	{
 		gl_FragColor = vec4(v_col, 1.0);
 	}
 };
-
+Manager assets;
 ShaderProgram program;
 Mesh cube_mesh;
 Camera cam;
@@ -41,7 +40,10 @@ void main()
 	writeln("main() found");
 
 	create_engine(800, 600, &on_start, &on_exit, &on_tick);
+
+	Handle* handle = assets.load("res/hello.txt");	
 }
+
 
 void on_start(Engine* e)
 {
@@ -59,7 +61,7 @@ void on_start(Engine* e)
 	cam.look_at(0, 0, 0);
 
 	program.create(shader_v, shader_f);
-	assert(program.is_compiled);
+	assert(program.is_compiled, "can't compile shader");
 
 	create_cube_mesh(&cube_mesh);
 

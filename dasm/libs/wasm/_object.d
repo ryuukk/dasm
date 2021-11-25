@@ -334,12 +334,6 @@ int _d_isbaseof2(scope TypeInfo_Class oc, scope const TypeInfo_Class c, scope re
 }
 
 
-extern(C) void _d_assert(string file, uint line) {
-	import dbg;
-	writelnf("D_ASSERT: ", file, line);
-	wasm.abort();
-}
-
 
 
 

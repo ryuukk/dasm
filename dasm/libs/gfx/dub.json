@@ -4,7 +4,6 @@
     "sourcePaths": [ "." ],
 	"importPaths": [ "." ],
 
-	
 	"dependencies": {
 		"rt": { "path": "../rt", "version": "*" }
 	}

@@ -3,7 +3,6 @@ module math;
 import dbg;
 
 
-extern(C):
 
 
 enum float FLOAT_ROUNDING_ERROR = 0.000001f;
@@ -17,6 +16,7 @@ enum isFloatingPoint(T) = __traits(isFloating, T) && is(T : real);
 
 version (WASM)
 {
+    extern(C):
     pragma(LDC_intrinsic, "llvm.sqrt.f32")
     float sqrt(float);
     pragma(LDC_intrinsic, "llvm.cos.f32")

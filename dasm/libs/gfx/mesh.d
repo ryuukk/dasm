@@ -178,7 +178,6 @@ struct ShaderProgram {
         auto ptr = cast(char*) cast(void*) source.ptr;
 
         glShaderSource(vs, 1, &ptr, &ssl);
-
         glCompileShader(vs); 
         glGetShaderiv(vs, GL_COMPILE_STATUS, &compiled);
 
@@ -191,7 +190,8 @@ struct ShaderProgram {
             int l = 0;
             glGetShaderInfoLog(vs, buffer.length, &l, buffer.ptr);
             
-            panic("can't compile shader %s:\n%s", (is_v ? "VERTEX" : "FRAGMENT").ptr, buffer.ptr);
+
+            writeln("Can't compile shader {}:\n{}",  (is_v ? "VERTEX" : "FRAGMENT"), buffer);
             return 0;
         }
 
