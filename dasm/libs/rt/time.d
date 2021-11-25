@@ -1,5 +1,7 @@
 module time;
 
+import dbg;
+
 version(WASM)
 {
     import wasm;
@@ -51,7 +53,7 @@ ulong ticks()
     }
     else
     {
-        panic!("not supported");
+        panic("not supported");
         return 0;
     }
 }
@@ -73,7 +75,7 @@ ulong frequency()
     }
     else
     {
-        panic!("not supported");
+        panic("not supported");
         return 0;
     }
 }
