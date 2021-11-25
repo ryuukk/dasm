@@ -26,9 +26,12 @@
             ABORT = true;
             console.error("-- D_ASSERT --");
         },
-        _d_assert_msg: (msg, file, line) => {
+        _d_assert_msg: (msgL, msg, fileL, file, line) => {
             ABORT = true;
             console.error("-- D_ASSERT_MSG");
+            var m = string.ptr2str_len(MOD.memory, msg, msgL);
+            var f = string.ptr2str_len(MOD.memory, file, fileL);
+            console.error(f+":"+line+" "+ m);
         },
         update_memory_view: () => {
             var memory = MOD.WA.exports.memory;
@@ -40,6 +43,42 @@
             MOD.HEAPU32 = new Uint32Array(memory.buffer);
             MOD.HEAPF32 = new Float32Array(memory.buffer);
             MOD.HEAPF64 = new Float64Array(memory.buffer);
+        },
+
+        // string: len, offset
+        // ctx + func: cb
+
+        load_file_async: (len, offset, id, ctx, func) => {
+            var path = string.ptr2str_len(MOD.memory.buffer, offset, len);
+            var req = new XMLHttpRequest();
+            req.open("GET", path, true);
+            req.responseType = "arraybuffer";
+
+            req.onload = function (evt) {
+                var arrayBuffer = req.response; // Note: not req.responseText
+                if (arrayBuffer) 
+                {
+                    var byteArray = new Uint8Array(arrayBuffer);
+                    var fileSize = byteArray.byteLength;
+                    
+                    // alloc on D side
+                    var ptr = MOD.WA.exports.malloc(fileSize);
+                    
+                    // copy file content to our buffer
+                    var mem = new Uint8Array(MOD.memory.buffer, ptr, arrayBuffer.length);
+                    mem.set(byteArray);
+
+                    // notify D side
+                    MOD.WA.exports.js_cb_load_file(ctx,func, id, ptr, fileSize);
+                }
+            };
+
+            req.onerror = function(evt) {
+                MOD.WA.exports.js_cb_load_file(ctx, func, id, 0, 0);
+                console.log('ERROR: Unnable to load file : ' + path + ' ' + evt.type);
+            };
+
+            req.send(null);
         },
     };
 
