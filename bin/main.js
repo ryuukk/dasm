@@ -95,13 +95,27 @@
                 ev.preventDefault();
               }
         }
-        canvas.addEventListener("touchmove", (ev) => {  }, true);
-        canvas.addEventListener("touchstart", (ev) => {  }, true);
-        canvas.addEventListener("touchcancel", (ev) => {  }, true);
-        canvas.addEventListener("touchend", (ev) => {  }, true);
-        canvas.addEventListener("mousemove", (ev) => {  }, true);
-        canvas.addEventListener("mousedown", (ev) => {  }, true);
-        canvas.addEventListener("mouseup", (ev) => {  }, true);
+        canvas.addEventListener("touchmove", (ev) => {
+            MOD.WA.exports.on_mouse_move(ev.offsetX, ev.offsetY);
+        }, true);
+        canvas.addEventListener("touchstart", (ev) => { 
+            MOD.WA.exports.on_mouse_down(0);
+        }, true);
+        canvas.addEventListener("touchcancel", (ev) => {
+            MOD.WA.exports.on_mouse_up(0);
+        }, true);
+        canvas.addEventListener("touchend", (ev) => { 
+            MOD.WA.exports.on_mouse_up(0);
+        }, true);
+        canvas.addEventListener("mousemove", (ev) => { 
+            MOD.WA.exports.on_mouse_move(ev.offsetX, ev.offsetY);
+        }, true);
+        canvas.addEventListener("mousedown", (ev) => { 
+            MOD.WA.exports.on_mouse_down(ev.button);
+        }, true);
+        canvas.addEventListener("mouseup", (ev) => {
+            MOD.WA.exports.on_mouse_up(ev.button);
+        }, true);
         canvas.addEventListener('wheel', (ev) => {  }, true);
         canvas.addEventListener('mousewheel', (ev) => {  }, true);
         canvas.addEventListener('mouseenter', (ev) => { }, true);

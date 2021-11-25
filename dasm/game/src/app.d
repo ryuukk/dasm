@@ -85,6 +85,23 @@ void on_tick(Engine* e, float dt)
 
 	glEnable(GL_DEPTH_TEST);
 
+
+	foreach(Event* e; engine.queue)
+	{
+		switch (e.type)
+		{
+			case EventType.INPUT_TOUCH_DOWN:
+				writeln("INPUT_TOUCH_DOWN: {} -> {}:{}", cast(Mouse)e.touch_down.button, e.touch_down.screen_x, e.touch_down.screen_y);
+			break;
+			case EventType.INPUT_TOUCH_UP:
+				writeln("INPUT_TOUCH_UP: {} -> {}:{}", cast(Mouse)e.touch_up.button, e.touch_up.screen_x, e.touch_up.screen_y);
+			break;
+
+			default: break;
+		}
+	}
+
+
 	a += 5 * dt;
 	transform = mat4.set(v3(0, 0, 0), quat.fromAxis(0, 1, 0, a), v3(1, 1, 1));
 

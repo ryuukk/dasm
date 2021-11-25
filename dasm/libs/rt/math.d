@@ -65,6 +65,15 @@ else
 
 }
 
+T max(T, U)(T a, U b)
+if (is(T == U) && is(typeof(a < b)))
+{
+   /* Handle the common case without all the template expansions
+    * of the general case
+    */
+    return a < b ? b : a;
+}
+
 auto abs(Num)(Num x)
 if ((is(immutable Num == immutable short) || is(immutable Num == immutable byte)) ||
     (is(typeof(Num.init >= 0)) && is(typeof(-Num.init))))

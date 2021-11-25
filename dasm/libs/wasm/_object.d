@@ -221,6 +221,17 @@ class TypeInfo_StaticArray : TypeInfo {
 
 import dbg;
 
+class TypeInfo_Enum : TypeInfo {
+    
+    TypeInfo base;
+    string   name;
+    void[]   m_init;
+
+    override bool equals(void* p1, void* p2) { return base.equals(p1, p2); }
+	override size_t size() const { return base.size(); }
+    override const(TypeInfo) next() const { return base.next(); }
+
+}
 class TypeInfo_Function : TypeInfo {
 
     TypeInfo next;

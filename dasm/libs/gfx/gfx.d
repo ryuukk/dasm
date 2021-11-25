@@ -2,13 +2,17 @@ module gfx;
 
 import dbg;
 import time;
+import math;
 
 version(WASM) import wasm;
 
 void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_t tcb)
 {
-    engine.width = width;
-    engine.height = height;
+    engine.back_buffer_width = width;
+    engine.back_buffer_height = height;
+    engine.logical_width = width;
+    engine.logical_height = height;
+
     engine.init_cb = icb;
     engine.exit_cb = ecb;
     engine.tick_cb = tcb;
@@ -27,8 +31,12 @@ alias on_tick_t = void function(Engine*, float);
 struct Engine
 {
     version(DESKTOP) GlfwWindow* window_ptr;
-    int width;
-    int height;
+    
+    int back_buffer_width = -1;
+    int back_buffer_height = -1;
+    int logical_width = -1;
+    int logical_height = -1;
+
     bool vsync = true;
     bool iconified;
 
@@ -45,6 +53,9 @@ struct Engine
     double frame_counter_start = 0;
     int frames = 0;
     int fps = 0;
+
+    
+    HdpiMode hdpi_mode = HdpiMode.LOGICAL;
 
     void track()
     {
@@ -65,6 +76,24 @@ struct Engine
 
         frames += 1;
         frame_id += 1;
+    }
+
+    float width()
+    {
+        if (hdpi_mode == HdpiMode.PIXEL) {
+            return cast(float) back_buffer_width;
+        } else {
+            return cast(float) logical_width;
+        }
+    }
+
+    float height()
+    {
+        if (hdpi_mode == HdpiMode.PIXEL) {
+            return cast(float) back_buffer_height;
+        } else {
+            return cast(float) logical_height;
+        }
     }
 }
 
@@ -165,6 +194,63 @@ version (WASM)
        engine.input.keys_down[k] = false;
     }
 
+    export extern (C) void on_mouse_move(float x, float y)
+    {
+        engine.input.delta_x = cast(int)(x - engine.input.logical_mouse_x);
+        engine.input.delta_y = cast(int)(y - engine.input.logical_mouse_y);
+        engine.input.mouse_x = cast(int) x;
+        engine.input.mouse_y = cast(int) y;
+        engine.input.logical_mouse_x = cast(int) x;
+        engine.input.logical_mouse_y = cast(int) y;
+
+        if (engine.hdpi_mode == HdpiMode.PIXEL)
+        {
+            auto xScale = engine.back_buffer_width / cast(float) engine.logical_width;
+            auto yScale = engine.back_buffer_height / cast(float) engine.logical_height;
+            engine.input.delta_x = cast(int)(engine.input.delta_x * xScale);
+            engine.input.delta_y = cast(int)(engine.input.delta_y * yScale);
+            engine.input.mouse_x = cast(int)(engine.input.mouse_x * xScale);
+            engine.input.mouse_y = cast(int)(engine.input.mouse_y * yScale);
+        }
+        if (engine.input.mouse_pressed > 0)
+        {
+            engine.queue.touch_dragged(engine.input.mouse_x, engine.input.mouse_y, 0);
+        }
+        else
+        {
+            engine.queue.mouse_moved(engine.input.mouse_x, engine.input.mouse_y);
+        }
+    }
+    
+    export extern (C) void on_mouse_down(int button)
+    {
+        Mouse m = js_to_mouse(button);
+        if (m == Mouse.NONE) return;
+
+        engine.input.mouse_pressed += 1;
+        engine.input.just_touched = true;
+        engine.queue.touch_down(engine.input.mouse_x, engine.input.mouse_y, 0, m);
+    }
+
+    export extern (C) void on_mouse_up(int button)
+    {
+        Mouse m = js_to_mouse(button);
+        if (m == Mouse.NONE) return;
+
+        engine.input.mouse_pressed = max(0, engine.input.mouse_pressed - 1);
+        engine.queue.touch_up(engine.input.mouse_x, engine.input.mouse_y, 0, m);
+    }
+
+    Mouse js_to_mouse(int button)
+    {
+        switch (button) with (Mouse)
+        {
+            case 0: return LEFT;
+            case 2: return RIGHT;
+            case 1: return MIDDLE;
+            default: return NONE;
+        }
+    }
 
     Key js_to_key(int key)
     {
@@ -638,3 +724,10 @@ enum Mouse
     RIGHT,
     MIDDLE
 }
+
+enum HdpiMode 
+{
+    LOGICAL, PIXEL
+}
+
+
