@@ -8,7 +8,10 @@ import mesh;
 import camera;
 import fs;
 
-const(char)[] shader_v = q{
+const(char)[] shader_v = "
+	#ifdef GL_ES
+	precision lowp float;
+	#endif	
 	uniform mat4 u_mvp;
 	uniform mat4 u_transform;
 	attribute vec4 a_position;
@@ -19,15 +22,20 @@ const(char)[] shader_v = q{
 		v_col = a_normal;
 		gl_Position = u_mvp * u_transform * a_position;
 	}
-};
+";
 
-const(char)[] shader_f = q{
+const(char)[] shader_f = "
+	#ifdef GL_ES
+	precision lowp float;
+	#endif	
 	varying vec3 v_col;
 	void main()
 	{
 		gl_FragColor = vec4(v_col, 1.0);
 	}
-};
+";
+
+
 Manager assets;
 ShaderProgram program;
 Mesh cube_mesh;
@@ -47,10 +55,6 @@ void main()
 
 void on_start(Engine* e)
 {
-	writelnf("Create canvas!");
-
-	writelnf("Canvas created!");
-
 	cam = Camera.init_perspective(60, engine.width, engine.height);
 	cam.near = 0.1;
 	cam.far = 35.0;
