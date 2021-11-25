@@ -1,4 +1,11 @@
 {
 	"name": "dasm",
-	"subPackages": [ "game", "server", "libs/rt", "libs/gfx", "libs/wasm", "libs/glfw" ]
+	"subPackages": [
+		"game",
+		"server",
+		"libs/rt",
+		"libs/gfx",
+		"libs/wasm",
+		"libs/glfw"
+	]
 }
