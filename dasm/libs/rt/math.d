@@ -31,26 +31,26 @@ version (WASM)
 else
 {
     import cmath = core.stdc.math;
+    import ccmath = core.math;
 
     float acosf(float value)
     {
         return cmath.acosf(value);
     }
 
-
     float sqrt(float value)
     {
-        return core.math.sqrt(value);
+        return ccmath.sqrt(value);
     }
 
     float sinf(float value)
     {
-        return core.math.sinf(value);
+        return ccmath.sin(value);
     }
 
     float cosf(float value)
     {
-        return core.math.costf(value);
+        return ccmath.cos(value);
     }
 
     float tanf(float value)
@@ -320,7 +320,6 @@ struct v3
         return this;
     }
 
-    pragma(inline)
     v3 opBinary(string op)(float other)
     {
         static if (op == "+")

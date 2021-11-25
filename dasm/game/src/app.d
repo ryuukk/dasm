@@ -1,5 +1,5 @@
 import dbg;
-import window;
+import gfx;
 import gl;
 import math;
 import time;
@@ -34,29 +34,29 @@ ShaderProgram program;
 Mesh cube_mesh;
 Camera cam;
 mat4 transform = mat4.identity;
+float a = 0;
 
 void main()
 {
-    writeln("main() found");
-    start();
+	writeln("main() found");
+
+	create_engine(800, 600, &on_start, &on_exit, &on_tick);
 }
 
-void start()
+void on_start(Engine* e)
 {
-    writelnf("Create canvas!");
+	writelnf("Create canvas!");
 
-    create_window(800, 600);
+	writelnf("Canvas created!");
 
-    writelnf("Canvas created!");
-
-	cam = Camera.init_perspective(60, 800, 600);
+	cam = Camera.init_perspective(60, engine.width, engine.height);
 	cam.near = 0.1;
 	cam.far = 35.0;
 	//cam.position = v3(0, 10, 6) * 0.6;
 	//cam.rotate(v3(1,0,0), -45);
 
 	cam.position = v3(0, 10, 5) * 0.6;
-	cam.look_at(0,0,0);
+	cam.look_at(0, 0, 0);
 
 	program.create(shader_v, shader_f);
 	assert(program.is_compiled);
@@ -73,22 +73,20 @@ void start()
 	// writeln("Buffer: {}", buffer);
 }
 
-uint last_update = 0;
-float a = 0;
-void render()
+void on_exit(Engine* e)
 {
-	uint dt_ms = get_elapsed_time() - last_update;
-	float dt = dt_ms / 1000f;
+}
 
-    glViewport(0, 0, 800, 600);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.2, 0.2, 0.2, 1);
+void on_tick(Engine* e, float dt)
+{
+	glViewport(0, 0, 800, 600);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.2, 0.2, 0.2, 1);
 
 	glEnable(GL_DEPTH_TEST);
 
-
 	a += 5 * dt;
-	transform = mat4.set(v3(0,0,0), quat.fromAxis(0,1,0, a), v3(1,1,1));
+	transform = mat4.set(v3(0, 0, 0), quat.fromAxis(0, 1, 0, a), v3(1, 1, 1));
 
 	cam.update();
 
@@ -96,15 +94,5 @@ void render()
 	program.set_uniform_mat4("u_mvp", &cam.combined);
 	program.set_uniform_mat4("u_transform", &transform);
 
-	cube_mesh.render(&program, GL_TRIANGLES);	
-
-	last_update = get_elapsed_time();
-}
-
-version (WASM)
-{
-    export extern (C) void WA_render()
-    {
-        render();
-    }
+	cube_mesh.render(&program, GL_TRIANGLES);
 }

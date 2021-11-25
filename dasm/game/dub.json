@@ -11,7 +11,7 @@
 			"targetPath": "../../bin",
 			"workingDirectory": "../../bin",
 			"versions": [ "GAME", "DESKTOP" ],
-			"libs": ["Opengl32"],
+			"libs": ["opengl32", "gdi32"],
 
 			"dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
@@ -30,7 +30,6 @@
 			],
 			"lflags-ldc": [ 
 				"-L-z stack-size=1048576",
-
 				"-allow-undefined"
 			 ],
 

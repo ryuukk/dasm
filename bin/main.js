@@ -81,6 +81,34 @@
         // Set up the WebGL context for our OpenGL 2.0 emulation
         if (!WGL_init_context(canvas)) return;
 
+        window.onkeyup = function(ev) 
+        {
+            var code = ev.keyCode;
+            MOD.WA.exports.on_key_up(code);
+        }
+        window.onkeydown = function(ev) 
+        {
+            var code = ev.keyCode;
+            MOD.WA.exports.on_key_down(code);
+
+            if (ev.keyCode === 8 /* backspace */ || ev.keyCode === 9 /* tab */) {
+                ev.preventDefault();
+              }
+        }
+        canvas.addEventListener("touchmove", (ev) => {  }, true);
+        canvas.addEventListener("touchstart", (ev) => {  }, true);
+        canvas.addEventListener("touchcancel", (ev) => {  }, true);
+        canvas.addEventListener("touchend", (ev) => {  }, true);
+        canvas.addEventListener("mousemove", (ev) => {  }, true);
+        canvas.addEventListener("mousedown", (ev) => {  }, true);
+        canvas.addEventListener("mouseup", (ev) => {  }, true);
+        canvas.addEventListener('wheel', (ev) => {  }, true);
+        canvas.addEventListener('mousewheel', (ev) => {  }, true);
+        canvas.addEventListener('mouseenter', (ev) => { }, true);
+        canvas.addEventListener('mouseleave', (ev) => { }, true);
+        canvas.addEventListener('drop', (ev) => {  }, true);
+        canvas.addEventListener('dragover', (ev) => {  }, true);
+
         console.log("JS: Canvas setup to: " + width +":"+height);
         var sts = document.getElementById("wa_status");
         sts.textContent = "Status: Loaded";

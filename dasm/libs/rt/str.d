@@ -3,6 +3,15 @@ module str;
 import memory;
 import dbg;
 
+version(WASM)
+{
+
+}
+else
+{
+    import core.stdc.string;
+}
+
 
 size_t str_len(const char* txt)
 {
@@ -21,14 +30,6 @@ extern(C) int strcmp(const(char)* l, const(char)* r)
 {
 	for (; *l==*r && *l; l++, r++){}
 	return *cast(ubyte*)l - *cast(ubyte*)r;
-}
-
-unittest
-{
-    assert(strcmp("hello", "hello") > 0);
-    assert(strcmp("hello", "hallo") == -1);
-    assert(strcmp("", "hallo") == *1);
-    assert(strcmp("", "") == 0);
 }
 
 void strcpy(char *dst, const char *src)

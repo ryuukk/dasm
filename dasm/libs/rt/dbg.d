@@ -272,9 +272,9 @@ else
         printf("%p", value);
     }
 
-    void print_str_len(const char* value, int len)
+    void print_str_len(const char* value, size_t len)
     {
-        printf("%.*s", len,  value);
+        printf("%.*s", cast(int)len,  value);
     }
 
     void print_ulong(ulong value)
@@ -284,6 +284,6 @@ else
 
     void print_long(long value)
     {
-        printf("%ld", value);
+        printf("%lld", value);
     }
 }

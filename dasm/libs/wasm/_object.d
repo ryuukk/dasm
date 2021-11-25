@@ -219,14 +219,15 @@ class TypeInfo_StaticArray : TypeInfo {
 
 }
 
-class AAA : TypeInfo
-{
-	
-    TypeInfo base;
-}
-
 import dbg;
 
+class TypeInfo_Function : TypeInfo {
+
+    TypeInfo next;
+    string deco;
+    
+	override size_t size() const { return 0; }
+}
 class TypeInfo_Struct : TypeInfo {
 	string name;
 	void[] m_init;
@@ -332,14 +333,6 @@ extern(C) void _d_assert(string file, uint line) {
 
 
 
-
-// The compiler lowers `lhs == rhs` to `__equals(lhs, rhs)` for
-// * dynamic arrays,
-// * (most) arrays of different (unqualified) element types, and
-// * arrays of structs with custom opEquals.
-
- // The scalar-only overload takes advantage of known properties of scalars to
- // reduce template instantiation. This is expected to be the most common case.
 bool __equals(T1, T2)(scope const T1[] lhs, scope const T2[] rhs)
 @nogc nothrow pure @trusted
 if (__traits(isScalar, T1) && __traits(isScalar, T2))
@@ -412,23 +405,45 @@ if (!__traits(isScalar, T1) || !__traits(isScalar, T2))
     }
 }
 
-TTo[] __ArrayCast(TFrom, TTo)(return scope TFrom[] from)
+// Returns a reference to an array element, eliding bounds check and
+// casting void to ubyte.
+pragma(inline, true)
+ref at(T)(T[] r, size_t i) @trusted
+    // exclude opaque structs due to https://issues.dlang.org/show_bug.cgi?id=20959
+    if (!(is(T == struct) && !is(typeof(T.sizeof))))
 {
-    const fromSize = from.length * TFrom.sizeof;
-    const toLength = fromSize / TTo.sizeof;
+    static if (is(immutable T == immutable void))
+        return (cast(ubyte*) r.ptr)[i];
+    else
+        return r.ptr[i];
+}
 
-    if ((fromSize % TTo.sizeof) != 0)
-    {
-        //onArrayCastError(TFrom.stringof, fromSize, TTo.stringof, toLength * TTo.sizeof);
-		wasm.abort();
-    }
 
-    struct Array
-    {
-        size_t length;
-        void* ptr;
-    }
-    auto a = cast(Array*)&from;
-    a.length = toLength; // jam new length
-    return *cast(TTo[]*)a;
+//TTo[] __ArrayCast(TFrom, TTo)(return scope TFrom[] from)
+//{
+//    const fromSize = from.length * TFrom.sizeof;
+//    const toLength = fromSize / TTo.sizeof;
+//
+//    if ((fromSize % TTo.sizeof) != 0)
+//    {
+//        //onArrayCastError(TFrom.stringof, fromSize, TTo.stringof, toLength * TTo.sizeof);
+//		wasm.abort();
+//        assert(0);
+//    }
+//
+//    struct Array
+//    {
+//        size_t length;
+//        void* ptr;
+//    }
+//    auto a = cast(Array*)&from;
+//    a.length = toLength; // jam new length
+//    return *cast(TTo[]*)a;
+//}
+
+
+void __switch_error()(string file = __FILE__, size_t line = __LINE__)
+{
+    //__switch_errorT(file, line);
+    wasm.abort();
 }

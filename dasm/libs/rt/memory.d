@@ -22,49 +22,49 @@ version (WASM)
 	
 	alias uint32_t = uint;
 
-__gshared uint32_t[32] freeHeads = 0;
-__gshared uint32_t[32] freeTails = 0;
-__gshared uint32_t freePages = 0;
-__gshared uint32_t freeStart = 0;
-__gshared uint32_t[65536] pageBuckets = 0;
+    __gshared uint32_t[32] freeHeads = 0;
+    __gshared uint32_t[32] freeTails = 0;
+    __gshared uint32_t freePages = 0;
+    __gshared uint32_t freeStart = 0;
+    __gshared uint32_t[65536] pageBuckets = 0;
 
 
-void* malloc(size_t size) {
-  if (size < 4) size = 4;
-  uint32_t bucket = (bsr(size - 1) ^ 31) + 1;
-  if (freeHeads[bucket] == 0 && freeTails[bucket] == 0) {
-    uint32_t wantPages = (bucket <= 16) ? 1 : (1 << (bucket - 16));
-    if (freePages < wantPages) {
-      uint32_t currentPages = llvm_wasm_memory_size(0);
-      if (freePages == 0) freeStart = currentPages << 16;
-      uint32_t plusPages = currentPages;
-      if (plusPages > 256) plusPages = 256;
-      if (plusPages < wantPages - freePages) plusPages = wantPages - freePages;
-      if (llvm_wasm_memory_grow(0, plusPages) == -1) assert(0);
-	  else update_memory_view();
-      freePages += plusPages;
+    void* malloc(size_t size) {
+    if (size < 4) size = 4;
+    uint32_t bucket = (bsr(size - 1) ^ 31) + 1;
+    if (freeHeads[bucket] == 0 && freeTails[bucket] == 0) {
+        uint32_t wantPages = (bucket <= 16) ? 1 : (1 << (bucket - 16));
+        if (freePages < wantPages) {
+        uint32_t currentPages = llvm_wasm_memory_size(0);
+        if (freePages == 0) freeStart = currentPages << 16;
+        uint32_t plusPages = currentPages;
+        if (plusPages > 256) plusPages = 256;
+        if (plusPages < wantPages - freePages) plusPages = wantPages - freePages;
+        if (llvm_wasm_memory_grow(0, plusPages) == -1) assert(0);
+        else update_memory_view();
+        freePages += plusPages;
+        }
+        pageBuckets[freeStart >> 16] = bucket;
+        freeTails[bucket] = freeStart;
+        freeStart += wantPages << 16;
+        freePages -= wantPages;
     }
-    pageBuckets[freeStart >> 16] = bucket;
-    freeTails[bucket] = freeStart;
-    freeStart += wantPages << 16;
-    freePages -= wantPages;
-  }
-  if (freeHeads[bucket] == 0) {
-    freeHeads[bucket] = freeTails[bucket];
-    freeTails[bucket] += 1 << bucket;
-    if ((freeTails[bucket] & 0xFFFF) == 0) freeTails[bucket] = 0;
-  }
-  uint32_t result = freeHeads[bucket];
-  freeHeads[bucket] = (cast(uint32_t*)(result))[0];
-  return cast(void*)(result);
-}
+    if (freeHeads[bucket] == 0) {
+        freeHeads[bucket] = freeTails[bucket];
+        freeTails[bucket] += 1 << bucket;
+        if ((freeTails[bucket] & 0xFFFF) == 0) freeTails[bucket] = 0;
+    }
+    uint32_t result = freeHeads[bucket];
+    freeHeads[bucket] = (cast(uint32_t*)(result))[0];
+    return cast(void*)(result);
+    }
 
-void free(void* ptr) {
-  uint32_t p = cast(uint32_t)(ptr);
-  size_t bucket = pageBuckets[p >> 16];
-  (cast(uint32_t*)(p))[0] = freeHeads[bucket];
-  freeHeads[bucket] = p;
-}
+    void free(void* ptr) {
+    uint32_t p = cast(uint32_t)(ptr);
+    size_t bucket = pageBuckets[p >> 16];
+    (cast(uint32_t*)(p))[0] = freeHeads[bucket];
+    freeHeads[bucket] = p;
+    }
 
 }
 else
@@ -98,6 +98,25 @@ void* memset(void* s, int c, size_t n)
 		n--;
 	}
 	return s;
+}
+
+int memcmp(
+    const(void)* s1, /* First string. */
+    const(void)* s2, /* Second string. */
+    size_t n) /* Length to compare. */
+{
+    ubyte u1, u2;
+
+    for (; n--; s1++, s2++)
+    {
+        u1 = *cast(ubyte*) s1;
+        u2 = *cast(ubyte*) s2;
+        if (u1 != u2)
+        {
+            return (u1 - u2);
+        }
+    }
+    return 0;
 }
 
 version (WASM)
