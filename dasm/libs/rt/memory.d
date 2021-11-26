@@ -26,7 +26,7 @@ version (WASM)
 
     export extern(C) void* malloc(size_t size) {
         if (size < 4) size = 4;
-        uint32_t bucket = (bsr(size - 1) ^ 31) + 1;
+        uint32_t bucket = (clz(size - 1) ^ 31) + 1;
         if (freeHeads[bucket] == 0 && freeTails[bucket] == 0) {
             uint32_t wantPages = (bucket <= 16) ? 1 : (1 << (bucket - 16));
             if (freePages < wantPages) {
@@ -146,134 +146,19 @@ T[] alloc_array(T)(size_t count)
 
 package:
 
-int bsr(uint v) pure
+int clz(uint x)
 {
-    pragma(inline, false);  // so intrinsic detection will work
-    return softBsr!uint(v);
-}
-
-/// ditto
-int bsr(ulong v) pure
-{
-    static if (size_t.sizeof == ulong.sizeof)  // 64 bit code gen
-    {
-        pragma(inline, false);   // so intrinsic detection will work
-        return softBsr!ulong(v);
-    }
-    else
-    {
-        /* intrinsic not available for 32 bit code,
-         * make do with 32 bit bsr
-         */
-        const sv = Split64(v);
-        return (sv.hi == 0)?
-            bsr(sv.lo) :
-            bsr(sv.hi) + 32;
-    }
-}
-
-private alias softBsf(N) = softScan!(N, true);
-private alias softBsr(N) = softScan!(N, false);
-
-/* Shared software fallback implementation for bit scan foward and reverse.
-If forward is true, bsf is computed (the index of the first set bit).
-If forward is false, bsr is computed (the index of the last set bit).
--1 is returned if no bits are set (v == 0).
-*/
-private int softScan(N, bool forward)(N v) pure
-    if (is(N == uint) || is(N == ulong))
-{
-    // bsf() and bsr() are officially undefined for v == 0.
-    if (!v)
-        return -1;
-
-    // This is essentially an unrolled binary search:
-    enum mask(ulong lo) = forward ? cast(N) lo : cast(N)~lo;
-    enum inc(int up) = forward ? up : -up;
-
-    N x;
-    int ret;
-    static if (is(N == ulong))
-    {
-        x = v & mask!0x0000_0000_FFFF_FFFFL;
-        if (x)
-        {
-            v = x;
-            ret = forward ? 0 : 63;
-        }
-        else
-            ret = forward ? 32 : 31;
-
-        x = v & mask!0x0000_FFFF_0000_FFFFL;
-        if (x)
-            v = x;
-        else
-            ret += inc!16;
-    }
-    else static if (is(N == uint))
-    {
-        x = v & mask!0x0000_FFFF;
-        if (x)
-        {
-            v = x;
-            ret = forward ? 0 : 31;
-        }
-        else
-            ret = forward ? 16 : 15;
-    }
-    else
-        static assert(false);
-
-    x = v & mask!0x00FF_00FF_00FF_00FFL;
-    if (x)
-        v = x;
-    else
-        ret += inc!8;
-
-    x = v & mask!0x0F0F_0F0F_0F0F_0F0FL;
-    if (x)
-        v = x;
-    else
-        ret += inc!4;
-
-    x = v & mask!0x3333_3333_3333_3333L;
-    if (x)
-        v = x;
-    else
-        ret += inc!2;
-
-    x = v & mask!0x5555_5555_5555_5555L;
-    if (!x)
-        ret += inc!1;
-
-    return ret;
-}
-private union Split64
-{
-    ulong u64;
-    struct
-    {
-        version (LittleEndian)
-        {
-            uint lo;
-            uint hi;
-        }
-        else
-        {
-            uint hi;
-            uint lo;
-        }
-    }
-
-    pragma(inline, true)
-    this(ulong u64) @safe pure nothrow @nogc
-    {
-        if (__ctfe)
-        {
-            lo = cast(uint) u64;
-            hi = cast(uint) (u64 >>> 32);
-        }
-        else
-            this.u64 = u64;
-    }
+    assert(x > 0);
+    
+    static ubyte[32] debruijn32 = [
+        0, 31, 9, 30, 3, 8, 13, 29, 2, 5, 7, 21, 12, 24, 28, 19,
+        1, 10, 4, 14, 6, 22, 25, 20, 11, 15, 23, 26, 16, 27, 17, 18
+    ];
+    x |= x>>1;
+    x |= x>>2;
+    x |= x>>4;
+    x |= x>>8;
+    x |= x>>16;
+    x++;
+    return debruijn32[x*0x076be629>>27];
 }
