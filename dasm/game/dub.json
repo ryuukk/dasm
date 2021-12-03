@@ -6,23 +6,31 @@
 
 	"configurations": [
 		{
-			"name": "game-desktop",
+			"name": "desktop",
 			"targetName": "game",
 			"targetPath": "../../bin",
 			"workingDirectory": "../../bin",
-			"versions": [ "GAME", "DESKTOP", "GL_30"],
-			"libs": [
+			"versions": [ "GAME", "DESKTOP", "GL_30", "FT_211", "BindFT_Static"],
+			"libs-windows": [
 				"user32",
 				"gdi32",
 				"shell32",
 				"ws2_32",
 				"Winmm",
 			],
-			
+			"libs-linux": [
+				"glfw",
+				"freetype",
+			],
 			"sourceFiles-windows": [
 				"../libs/glfw/glfw3.lib",
+				"../libs/freetype/freetype.lib",
 			],
-
+			"dflags": [
+				"-preview=rvaluerefparam",
+				"-preview=intpromote",
+				"-profile=gc"
+			],
 			"lflags-windows": [
 				"/NODEFAULTLIB:libcmt.lib"
 			],
@@ -30,30 +38,29 @@
                 "rt": { "path": "../libs/rt", "version": "*" },
 				"gfx": { "path": "../libs/gfx", "version": "*" },
 				"glfw": { "path": "../libs/glfw", "version": "*" },
+				"freetype": { "path": "../libs/freetype", "version": "*" },
 
 				"bindbc-opengl": "~>1.0.0",
 			},
-						
 			"subConfigurations": {
 				"bindbc-opengl": "dynamicBC"
 			},
 		},
 		{
-			"name": "game-wasm",
+			"name": "wasm",
 			"targetName": "game",
 			"dflags-ldc": [
 				"--fvisibility=hidden",
-				"-linkonce-templates", 
+				"-linkonce-templates",
 				"-preview=intpromote",
-				"-preview=rvaluerefparam"
+				"-preview=rvaluerefparam",
 			],
-			"lflags-ldc": [ 
+			"lflags-ldc": [
 				"-L-z stack-size=1048576",
 				"-allow-undefined"
-			 ],
-
+			],
 			"targetPath": "../../bin",
-			"versions": [ "GAME", "WASM" ],
+			"versions": [ "GAME", "WASM", "FT_211", "BindFT_Static"],
 
 			"dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },

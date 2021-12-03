@@ -27,6 +27,10 @@
 				printBuffered(i + '');
 			};
 
+			imports.print_long = (i) => {
+				printBuffered(i + '');
+			};
+
 			imports.print_float = (f) => {
 				printBuffered(f + '');
 			};

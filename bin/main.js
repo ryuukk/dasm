@@ -8,7 +8,6 @@
         initial: 128,
         maximum: 512
     });
-    const heap = new Uint8Array(memory.buffer);
 
     var env = 
     {
@@ -35,6 +34,7 @@
         },
         update_memory_view: () => {
             var memory = MOD.WA.exports.memory;
+            MOD.memory = memory;
             MOD.HEAP8 = new Int8Array(memory.buffer);
             MOD.HEAPU8 = new Uint8Array(memory.buffer);
             MOD.HEAP16 = new Int16Array(memory.buffer);
@@ -65,20 +65,22 @@
                     var ptr = MOD.WA.exports.malloc(fileSize);
                     
                     // copy file content to our buffer
-                    var mem = new Uint8Array(MOD.memory.buffer, ptr, arrayBuffer.length);
-                    mem.set(byteArray);
+                    MOD.HEAP8.set(byteArray, ptr);
 
                     // notify D side
-                    MOD.WA.exports.js_cb_load_file(ctx,func, id, ptr, fileSize);
+                    MOD.WA.exports.js_cb_load_file(ctx,func, id, ptr, fileSize, true);
                 }
             };
 
             req.onerror = function(evt) {
-                MOD.WA.exports.js_cb_load_file(ctx, func, id, 0, 0);
+                MOD.WA.exports.js_cb_load_file(ctx, func, id, 0, 0, false);
                 console.log('ERROR: Unnable to load file : ' + path + ' ' + evt.type);
             };
 
             req.send(null);
+        },
+
+        WAJS_sleep: function(ms) {
         },
     };
 
@@ -98,7 +100,7 @@
         {
             let onContextCreationError = (event) => { errorInfo = event.statusMessage || errorInfo; };
             canvas.addEventListener('webglcontextcreationerror', onContextCreationError, false);
-            try { MOD.WGL = canvas.getContext('webgl2', attr) || canvas.getContext('webgl', attr); }
+            try { MOD.WGL = canvas.getContext('webgl2', attr); }
             finally { canvas.removeEventListener('webglcontextcreationerror', onContextCreationError, false); }
             if (!MOD.WGL) throw 'Could not create context';
             else console.log("JS: WGL ok");
@@ -124,6 +126,8 @@
         {
             var code = ev.keyCode;
             MOD.WA.exports.on_key_up(code);
+
+            console.log("UP "+ code);
         }
         window.onkeydown = function(ev) 
         {
@@ -133,7 +137,19 @@
             if (ev.keyCode === 8 /* backspace */ || ev.keyCode === 9 /* tab */) {
                 ev.preventDefault();
               }
-        }
+        },
+
+        window.onkeypress = function(ev) 
+        {
+            var code = ev.keyCode;
+            MOD.WA.exports.on_key_down(code);
+
+            if (ev.keyCode === 8 /* backspace */ || ev.keyCode === 9 /* tab */) {
+                ev.preventDefault();
+              }
+        },
+
+
         canvas.addEventListener("touchmove", (ev) => {
             MOD.WA.exports.on_mouse_move(ev.offsetX, ev.offsetY);
         }, true);
@@ -186,9 +202,13 @@
         };
         
         window.requestAnimationFrame(draw_func_ex);
+
+        
     };
 
     // Export a custom GetTime function that returns milliseconds since startup
+
+    env.WAJS_ticks = () => { return window.performance.now(); };
     env.WAJS_get_time = () => { return Date.now(); };
     env.WAJS_get_elapsed_time = () => { return Date.now() - initTime; };
     

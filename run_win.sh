@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 
-echo "Running.."
-cd dasm/game
-dub run -c game-desktop
+PROJECT=game
+CONFIG=desktop
+
+if [ "$#" -eq  "1" ]
+    then
+    echo "missing argument"
+    exit
+fi
+
+if [ "$#" -eq  "2" ]
+  then
+   PROJECT=$1
+   CONFIG=$2
+fi
+
+echo "Running: $PROJECT with config: $CONFIG"
+cd dasm/$PROJECT
+dub run -c $CONFIG
 cd ..

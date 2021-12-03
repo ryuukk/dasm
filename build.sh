@@ -2,5 +2,5 @@
 
 echo "Building.."
 cd dasm/game
-dub build -c game-wasm --compiler=ldc2 --arch=wasm32-unknown-unknown-wasm
+dub build -c wasm --compiler=ldc2 --arch=wasm32-unknown-unknown-wasm
 cd ..
