@@ -5,13 +5,105 @@
 // https://www.w3.org/TR/2003/REC-PNG-20031110/
 module image.png;
 
-version (DESKTOP):
-
-import etc.c.zlib;
-
 import image;
+import dbg;
 
-@nogc nothrow package:
+package:
+
+import core.stdc.config;
+
+version (WASM)
+{
+    alias c_ulong = uint;
+}
+
+extern (C)
+{
+    const(char)* ZLIB_VERSION = "1.2.11";
+    const ZLIB_VERNUM = 0x12b0;
+    enum
+    {
+        Z_OK = 0,
+        Z_STREAM_END = 1,
+        Z_NEED_DICT = 2,
+        Z_ERRNO = -1,
+        Z_STREAM_ERROR = -2,
+        Z_DATA_ERROR = -3,
+        Z_MEM_ERROR = -4,
+        Z_BUF_ERROR = -5,
+        Z_VERSION_ERROR = -6,
+    }
+    enum
+    {
+        Z_NO_FLUSH = 0,
+        Z_PARTIAL_FLUSH = 1, /* will be removed, use Z_SYNC_FLUSH instead */
+        Z_SYNC_FLUSH = 2,
+        Z_FULL_FLUSH = 3,
+        Z_FINISH = 4,
+        Z_BLOCK = 5,
+        Z_TREES = 6,
+    }
+    enum
+    {
+        Z_NO_COMPRESSION = 0,
+        Z_BEST_SPEED = 1,
+        Z_BEST_COMPRESSION = 9,
+        Z_DEFAULT_COMPRESSION = -1,
+    }
+    alias alloc_func = void* function(void* opaque, uint items, uint size);
+    alias free_func = void function(void* opaque, void* address);
+
+    struct z_stream
+    {
+        const(ubyte)* next_in; /* next input byte */
+        uint avail_in; /* number of bytes available at next_in */
+        c_ulong total_in; /* total nb of input bytes read so far */
+
+        ubyte* next_out; /* next output byte will go here */
+        uint avail_out; /* remaining free space at next_out */
+        c_ulong total_out; /* total nb of bytes output so far */
+
+        const(char)* msg; /* last error message, NULL if no error */
+        void* state; /* not visible by applications */
+
+        alloc_func zalloc; /* used to allocate the internal state */
+        free_func zfree; /* used to free the internal state */
+        void* opaque; /* private data object passed to zalloc and zfree */
+
+        int data_type; /* best guess about the data type: binary or text
+                           for deflate, or the decoding state for inflate */
+        c_ulong adler; /* Adler-32 or CRC-32 value of the uncompressed data */
+        c_ulong reserved; /* reserved for future use */
+    }
+
+    alias z_streamp = z_stream*;
+
+    int inflateInit(z_streamp strm)
+    {
+        return inflateInit_(strm, ZLIB_VERSION, z_stream.sizeof);
+    }
+
+    int inflateInit_(z_streamp strm,
+        const(char)* versionx,
+        int stream_size);
+
+    int inflate(z_streamp strm, int flush);
+    int deflate(z_streamp strm, int flush);
+
+    int inflateEnd(z_streamp strm);
+    int deflateEnd(z_streamp strm);
+    int deflateInit(z_streamp strm, int level)
+    {
+        return deflateInit_(strm, level, ZLIB_VERSION, z_stream.sizeof);
+    }
+
+    int deflateInit_(z_streamp strm,
+        int level,
+        const(char)* versionx,
+        int stream_size);
+
+}
+
 
 struct PNGHeader {
     int     w;
@@ -60,10 +152,10 @@ struct PNGDecoder {
     ubyte[]     idat_window;    // slice of reader's buffer
 }
 
-immutable ubyte[8] SIGNATURE =
+const ubyte[8] SIGNATURE =
     [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
-immutable ubyte[8] HEAD_CHUNK_SIG =
+const ubyte[8] HEAD_CHUNK_SIG =
     [0x0, 0x0, 0x0, 0xd, 'I','H','D','R'];
 
 bool detect_png(Reader* rc)
@@ -85,7 +177,11 @@ IFInfo read_png_info(Reader* rc)
     if (head.colortype == CTYPE.idx && have_tRNS(rc))
         info.c = 4;
     else if (info.c == 0 && !info.e)
-        info.e = ERROR.data;
+        {
+            
+            writeln("1");
+            info.e = ERROR.data;
+        }
     return info;
 }
 
@@ -98,21 +194,22 @@ bool have_tRNS(Reader* rc)
         uint len = load_u32be(chunkmeta[4..8]);
         if (len > int.max)
             return false;
-        switch (cast(char[]) chunkmeta[8..12]) {
-            case "tRNS":
-                return true;
-            case "IDAT":
-            case "IEND":
-                return false;
-            default:
-                while (len > 0) {
-                    ubyte[] slice = read_slice(rc, len);
-                    if (!slice.length)
-                        return false;
-                    len -= slice.length;
-                }
-                read_block(rc, chunkmeta[0..$]); // crc | len, type
-        }
+        
+        // TODO: replaced because switch issue with WASM
+        auto ck = chunkmeta[8 .. 12];
+        if (ck == "tRNS") return true;
+        else if (ck == "IDAT" || ck == "IEND") return false;
+        else
+        {
+            while (len > 0) {
+                ubyte[] slice = read_slice(rc, len);
+                if (!slice.length)
+                    return false;
+                len -= slice.length;
+            }
+            read_block(rc, chunkmeta[0..$]); // crc | len, type
+        } 
+
     }
     return false;
 }
@@ -123,10 +220,18 @@ ubyte read_png_header(Reader* rc, out PNGHeader head)
     read_block(rc, tmp[0..$]);
     if (rc.fail) return ERROR.stream;
 
-    if (tmp[0..8] != SIGNATURE       ||
-        tmp[8..16] != HEAD_CHUNK_SIG ||
-        tmp[29..33] != CRC32.of(tmp[12..29]))
+    // cast(const(ubyte[8])) 
+    if (tmp[0..8] != SIGNATURE)
         return ERROR.data;
+        
+    if (tmp[8..16] != HEAD_CHUNK_SIG)
+        return ERROR.data;
+        
+    if (tmp[29..33] != CRC32.of(tmp[12..29]))
+        return ERROR.data;
+    
+
+    
 
     head.w           = load_u32be(tmp[16..20]);
     head.h           = load_u32be(tmp[20..24]);
@@ -219,8 +324,13 @@ ubyte read_chunks(PNGDecoder* dc)
             return ERROR.data;
 
         dc.crc.put(dc.chunkmeta[8..12]);  // type
-        switch (cast(char[]) dc.chunkmeta[8..12]) {
-            case "IDAT":
+
+        // TODO: replaced because switch issue with WASM
+        auto ck = dc.chunkmeta[8 .. 12];
+
+
+        if (ck == "IDAT")
+        {
                 if (stage != STAGE.IHDR_done &&
                    (stage != STAGE.PLTE_done || !dc.indexed))
                    return ERROR.data;
@@ -235,8 +345,9 @@ ubyte read_chunks(PNGDecoder* dc)
                 if (dc.crc.finish_be() != dc.chunkmeta[0..4])
                     return ERROR.data;
                 stage = STAGE.IDAT_done;
-                break;
-            case "PLTE":
+        }
+        else if (ck == "PLTE")
+        {
                 if (stage != STAGE.IHDR_done)
                     return ERROR.data;
                 const uint entries = len / 3;
@@ -251,8 +362,9 @@ ubyte read_chunks(PNGDecoder* dc)
                 if (dc.crc.finish_be() != dc.chunkmeta[0..4])
                     return ERROR.data;
                 stage = STAGE.PLTE_done;
-                break;
-            case "tRNS":
+        }
+        else if (ck == "tRNS")
+        {
                 if (! (stage == STAGE.IHDR_done ||
                       (stage == STAGE.PLTE_done && dc.indexed)) )
                     return ERROR.data;
@@ -269,41 +381,76 @@ ubyte read_chunks(PNGDecoder* dc)
                 dc.crc.put(dc.transparency[0..len]);
                 if (dc.crc.finish_be() != dc.chunkmeta[0..4])
                     return ERROR.data;
-                break;
-            case "IEND":
+        }
+        else if (ck == "IEND")
+        {
                 if (stage != STAGE.IDAT_done)
                     return ERROR.data;
-                static immutable ubyte[4] IEND_CRC = [0xae, 0x42, 0x60, 0x82];
+                static const ubyte[4] IEND_CRC = [0xae, 0x42, 0x60, 0x82];
                 read_block(dc.rc, dc.chunkmeta[0..4]);
                 if (len != 0 || dc.chunkmeta[0..4] != IEND_CRC)
                     return ERROR.data;
                 stage = STAGE.IEND_done;
-                break;
-            case "IHDR":
+        }
+        else if (ck == "IHDR")
+        {
                 return ERROR.data;
-            default:
-                // unknown chunk, ignore but check crc
-                while (len > 0) {
-                    ubyte[] slice = read_slice(dc.rc, len);
-                    if (!slice.length)
-                        return ERROR.data;
-                    len -= slice.length;
-                    dc.crc.put(slice[0..$]);
-                }
-                read_block(dc.rc, dc.chunkmeta[0..$]); // crc | len, type
-                if (dc.crc.finish_be() != dc.chunkmeta[0..4])
+        }
+        else
+        {
+            // unknown chunk, ignore but check crc
+            while (len > 0) {
+                ubyte[] slice = read_slice(dc.rc, len);
+                if (!slice.length)
                     return ERROR.data;
+                len -= slice.length;
+                dc.crc.put(slice[0..$]);
+            }
+            read_block(dc.rc, dc.chunkmeta[0..$]); // crc | len, type
+            if (dc.crc.finish_be() != dc.chunkmeta[0..4])
+                return ERROR.data;
         }
     }
 
     return dc.rc.fail ? ERROR.stream : 0;
 }
 
+import mem = memory;
+
+extern(C) void* my_malloc(void* opaque, uint items, uint size)
+{
+    void* p = mem.malloc(size * items);
+    if (opaque)
+    {
+        assert(0);
+        //CZipPtrList<void*>* list  = (CZipPtrList<void*>*) opaque;
+        //list->AddTail(p);
+    }
+    return p;
+}
+
+extern(C) void my_free(void* opaque, void* address) 
+{
+    if (opaque)
+    {
+        assert(0);
+    }
+    // {
+    // 	CZipPtrList<void*>* list  = (CZipPtrList<void*>*) opaque;
+    // 	CZipPtrListIter iter = list->Find(address);
+    // 	if (list->IteratorValid(iter))
+    // 	{
+    // 		list->RemoveAt(iter);
+    // 	}
+    // }
+    mem.free(address);
+}
 ubyte read_idat_chunks(PNGDecoder* dc, in uint len)
 {
     // initialize zlib stream
-    z_stream z = { zalloc: null, zfree: null, opaque: null };
-    if (inflateInit(&z) != Z_OK)
+    z_stream z = { zalloc: &my_malloc, zfree: &my_free, opaque: null };
+    auto zi = inflateInit(&z);
+    if (zi != Z_OK)
         return ERROR.zinit;
     dc.z = &z;
     dc.avail_idat = len;
@@ -634,7 +781,7 @@ ubyte paeth(in ubyte a, in ubyte b, in ubyte c)
 }
 
 alias A7Catapult = size_t function(size_t redx, size_t redy, size_t dw, size_t dhi, bool flp);
-immutable A7Catapult[7] a7catapults = [
+const A7Catapult[7] a7catapults = [
     &a7_red1_to_dst,
     &a7_red2_to_dst,
     &a7_red3_to_dst,
@@ -751,7 +898,7 @@ ubyte write_png(Writer* wc, int w, int h, in ubyte[] buf, in int reqchans)
     ubyte e = write_idat(ec);
     if (e) return e;
 
-    static immutable ubyte[12] IEND =
+    static const ubyte[12] IEND =
         [0, 0, 0, 0, 'I','E','N','D', 0xae, 0x42, 0x60, 0x82];
     write_block(wc, IEND);
 
@@ -775,7 +922,7 @@ enum MAXIMUM_CHUNK_SIZE = 8192;
 ubyte write_idat(ref PNGEncoder ec)
 {
     // initialize zlib stream
-    z_stream z = { zalloc: null, zfree: null, opaque: null };
+    z_stream z = { zalloc: &my_malloc, zfree: &my_free, opaque: null };
     if (deflateInit(&z, Z_DEFAULT_COMPRESSION) != Z_OK)
         return ERROR.zinit;
     scope(exit)
@@ -864,8 +1011,6 @@ void flush_idat(ref PNGEncoder ec)      // writes an idat chunk
 struct CRC32 {
     uint r = 0xffff_ffff;
 
-    @nogc nothrow:
-
     void put(in ubyte[] data)
     {
         foreach (b; data) {
@@ -889,7 +1034,7 @@ struct CRC32 {
     }
 }
 
-immutable uint[256] CRC32TAB = [
+const uint[256] CRC32TAB = [
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
     0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
     0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,

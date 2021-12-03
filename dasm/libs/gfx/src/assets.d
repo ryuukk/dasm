@@ -148,8 +148,8 @@ struct Resource
             //#ifdef LUMIX_DEBUG
                 //invoking = true;
             //#endif
-            writeln("here");
-            cb(old_state, current_state, &this);
+            if (cb)
+                cb(old_state, current_state, &this);
             //#ifdef LUMIX_DEBUG
                 //invoking = false;
             //#endif
@@ -204,7 +204,10 @@ struct Resource
 
 struct Texture
 {
+    import texture;
+
     Resource base;
+    Texture2D tex;
 
     void create(char[256] path, ResourceCache* cache)
     {
@@ -212,11 +215,34 @@ struct Texture
         base.vt_load = &load;
     }
 
-
     bool load(uint size, const(ubyte)* buffer)
     {
         writeln("Tex: load: {} at {}", size, buffer);
-        return true;
+        import image;
+
+        IFImage a = read_image(buffer[0 .. size], 4);
+        scope (exit)
+            a.free();
+
+        if (a.e)
+        {
+            panic("*** decode error: {}", IF_ERROR[a.e]);
+        }
+        else
+        {
+            PixelFormat format;
+            auto c = a.c;
+            if (c == 4)
+                format = PixelFormat.Rgba;
+            else if (c == 3)
+                format = PixelFormat.Rgb;
+            else
+                assert(0);
+
+            tex = create_texture(a.w, a.h, a.buf8.ptr, format);
+            return true;
+        }
+        return false;
     }
 }
 

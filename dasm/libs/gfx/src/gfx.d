@@ -12,6 +12,27 @@ import r = renderer;
 version(WASM) import wasm;
 version(DESKTOP) import glfw;
 
+void check_gl_error(bool exit = true, string file = __FILE__, int line = __LINE__)
+{
+    // version (WASM)
+    // {}
+    // else
+    // {
+    // int err = glGetError();
+    // if (err != 0)
+    // {
+    //     if(exit)
+    //         panic("[{}:{}] GL ERROR: {}", file.ptr, line, err);
+    //     else
+    //         LERRO("[{}:{}] GL ERROR: {}", file.ptr, line, err);
+    // }
+    // }
+}
+
+version (WASM)
+{
+    export extern(C) void _Unwind_Resume(void* ex){}
+}
 
 void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_t tcb)
 {

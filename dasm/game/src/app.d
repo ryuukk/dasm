@@ -58,29 +58,9 @@ void main()
 
 void on_start(Engine* e)
 {    
-    // load_file_async("res/fonts/kreon-regular.ttf", 0, (id, ptr, len, ok) {
-    //     import memory;
-
-    //     FontConfig font_config = {
-    //         size: 14,
-    //         outline: true,
-    //         outline_size: 1,
-    //         color: Colorf.WHITE,
-    //         color_outline: Colorf.BLACK,
-    //         gradient: false,
-    //         file_data: cast(ubyte[])ptr[0 .. len],
-    //     };
-
-    //     fnt.load(MALLOCATOR.ptr(), font_config);
-
-    //     writeln("Font: {}:{}", fnt.atlas_width, fnt.atlas_height);
-        
-    //     free(ptr);
-    // });
-
 	cache.create();
 	
-	tex = cache.load!(Texture)("res/hello.txt");
+	tex = cache.load!(Texture)("res/textures/uv_grid.png");
 
 	assert(tex);
 
@@ -120,39 +100,10 @@ void on_tick(Engine* e, float dt)
 
 	cube_mesh.render(&program, GL_TRIANGLES);
 
-
     renderer.spritebatch.begin();
-	
+	if (tex && tex.base.is_ready())
+	{
+		renderer.spritebatch.draw(&tex.tex, 0,0, 128, 128);
+	}
     renderer.spritebatch.end();    
 }
-
-version(NONE):
-    import core.memory;
-    extern (C) __gshared string[] rt_options = ["gcopt=initReserve:0 profle:1"];
-
-    extern (C) void* gc_malloc(size_t sz, uint ba = 0, const TypeInfo = null)
-    {
-        import core.stdc.stdio : printf;
-        import core.stdc.stdlib : abort;
-
-        printf("no gc_malloc\n");
-        abort();
-    }
-
-    extern (C) void* gc_calloc(size_t sz, uint ba = 0, const TypeInfo = null)
-    {
-        import core.stdc.stdio : printf;
-        import core.stdc.stdlib : abort;
-
-        printf("no gc_calloc\n");
-        abort();
-    }
-
-    extern (C) auto gc_qalloc(size_t sz, uint ba = 0, const TypeInfo = null)
-    {
-        import core.stdc.stdio : printf;
-        import core.stdc.stdlib : abort;
-
-        printf("no gc_qalloc\n");
-        abort();
-    }

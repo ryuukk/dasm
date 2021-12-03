@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 module image;
 
-version (DESKTOP):
+version (DESKTOP)
+{
     import cstdio = core.stdc.stdio;
     import cstd = core.stdc.stdlib;
+}
 
 import image.png;
-
-@nogc nothrow:
 
 /// Basic image information.
 struct IFInfo {
@@ -32,7 +32,6 @@ struct IFImage {
         ushort[] buf16;     ///
     }
 
-    @nogc nothrow:
 
     /// Frees the image data.
     void free() {
@@ -45,21 +44,23 @@ struct IFImage {
 struct Read {
     void* stream;
     /// returns number of bytes read; tries to read n bytes
-    int function(void* stream, ubyte* buf, int n) @nogc nothrow read;
+    int function(void* stream, ubyte* buf, int n) read;
     /// returns 0 on success, -1 on error;
     /// sets cursor to off(set) from current position
-    int function(void* stream, int off) @nogc nothrow seek;
+    int function(void* stream, int off) seek;
 }
 
 /// Write interface.
 struct Write {
     void* stream;
     /// returns the number of bytes written; tries to write all of buf.
-    int function(void* stream, ubyte[] buf) @nogc nothrow write;
+    int function(void* stream, ubyte[] buf) write;
     /// returns 0 on success, -1 on error; forces a write of still unwritten data.
-    int function(void* stream) @nogc nothrow flush;
+    int function(void* stream) flush;
 }
 
+version (DESKTOP)
+{
 int fileread(void* st, ubyte* buf, int n)
 {
     return cast(int) cstdio.fread(buf, 1, n, cast(cstdio.FILE*) st);
@@ -78,6 +79,7 @@ int filewrite(void* st, ubyte[] buf)
 int fileflush(void* st)
 {
     return cstdio.fflush(cast(cstdio.FILE*) st);
+}
 }
 
 /// Maximum size for the result buffer the loader functions
@@ -110,10 +112,23 @@ version(IF__CUSTOM_ALLOC) {
     void* _malloc(size_t size)             { return if__malloc(if__allocator, size);       }
     void* _realloc(void* ptr, size_t size) { return if__realloc(if__allocator, ptr, size); }
     void _free(void* ptr)                  { return if__free(if__allocator, ptr);          }
-} else {
-    void* _malloc(size_t size)             { return cstd.malloc(size);       }
-    void* _realloc(void* ptr, size_t size) { return cstd.realloc(ptr, size); }
-    void _free(void* ptr)                  { return cstd.free(ptr);          }
+} else 
+{
+    version (DESKTOP)
+    {
+
+        void* _malloc(size_t size)             { return cstd.malloc(size);       }
+        void* _realloc(void* ptr, size_t size) { return cstd.realloc(ptr, size); }
+        void _free(void* ptr)                  { return cstd.free(ptr);          }
+
+    }
+    else
+    {
+        import mem = memory;
+        void* _malloc(size_t size)             { return mem.malloc(size);       }
+        void* _realloc(void* ptr, size_t size) { assert(0); }
+        void _free(void* ptr)                  { return mem.free(ptr);          }
+    }
 }
 
 /// Error values returned from the functions.
@@ -166,7 +181,6 @@ IFInfo read_info(cstdio.FILE* f)
     Read io = { cast(void*) f, &fileread, &fileseek };
     return read_info(io);
 }
-}
 
 /// Reads basic information about an image.
 IFInfo read_info(Read io)
@@ -182,6 +196,7 @@ IFInfo read_info(Read io)
     // if (detect_tga(&rc)) return read_tga_info(&rc);
     info.e = ERROR.oddfmt;
     return info;
+}
 }
 
 /// Reads basic information about an image.
@@ -268,6 +283,8 @@ IFImage read_image(in ubyte[] buf, in int c = 0, in int bpc = 8)
     return image;
 }
 
+version(DESKTOP)
+{
 /// Returns 0 on success, else an error code. Assumes RGB order for color components
 /// in buf, if present.  Note: The file will remain even if the write fails.
 ubyte write_image(in char[] fname, int w, int h, in ubyte[] buf, int reqchans = 0)
@@ -285,6 +302,7 @@ ubyte write_image(in char[] fname, int w, int h, in ubyte[] buf, int reqchans = 
     ubyte e = write_image(fmt, f, w, h, buf, reqchans);
     cstdio.fclose(f);
     return e;
+}
 }
 
 enum IF_BMP = 0;    /// the BMP format
@@ -1134,7 +1152,7 @@ struct NTString {
     char[255]    tmp;
     bool         heap;
 
-    @nogc nothrow:
+    
 
     // Leaves ptr null on malloc error.
     this(in char[] s)

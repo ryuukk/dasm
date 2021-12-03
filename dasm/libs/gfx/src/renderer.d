@@ -22,8 +22,8 @@ struct Renderer
     void create(Engine* engine)
     {
         this.engine = engine;
-        init_renderer();
-            
+        //init_renderer();
+        
         state.set_blend_state(BlendState.AlphaBlend);
         state.set_depth_state(DepthState.Default, true);
 

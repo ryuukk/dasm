@@ -7,7 +7,7 @@ import mesh;
 import math;
 import memory;
 import gfx;
-import renderer;
+import renderer: BlendState;
 
 
 struct SpriteBatch
@@ -122,9 +122,8 @@ struct SpriteBatch
     {
         if (_idx == 0)
             return;
-
             
-        //render_state.set_blend_state(blend_state);
+        renderer.state.set_blend_state(blend_state);
 
         renderCalls++;
         totalRenderCalls++;
