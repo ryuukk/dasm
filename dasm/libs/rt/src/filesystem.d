@@ -378,7 +378,8 @@ struct FS
     version (WASM) extern (C) void on_wasm_cp(uint id, void* ptr, int len, bool ok)
     {
         scope (exit)
-            mem.free(ptr);
+            if (ok) mem.free(ptr);
+
         int index = -1;
         foreach (i, ref q; queue)
         {
@@ -387,9 +388,16 @@ struct FS
                 index = i;
                 if (q.is_canceled())
                     break;
-
-                q.data.resize(len);
-                mem.memcpy(q.data.data, ptr, len);
+                
+                if (!ok)
+                {
+                    q.flags |= AsyncItem.Flags.FAILED;
+                }
+                else
+                {
+                    q.data.resize(len);
+                    mem.memcpy(q.data.data, ptr, len);
+                }
 
                 finished.add(q);
                 break;
