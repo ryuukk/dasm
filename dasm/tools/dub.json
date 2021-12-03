@@ -1,0 +1,47 @@
+{
+	"name": "tool",
+	"targetType": "executable",
+	"configurations": [
+		{
+			"name": "font",
+			"targetName": "tool-font",
+			"targetPath": "../../bin",
+			"workingDirectory": "../../bin",
+			"sourceFiles": [ "src/gen_font.d" ],
+			"versions": [ "DESKTOP", "GL_30", "FT_211", "BindFT_Static"],
+			"libs-windows": [
+				"user32",
+				"gdi32",
+				"shell32",
+				"ws2_32",
+				"Winmm",
+			],
+			"libs-linux": [
+				"glfw",
+				"freetype",
+			],
+			"sourceFiles-windows": [
+				"../libs/glfw/glfw3.lib",
+				"../libs/freetype/freetype.lib",
+			],
+			"dflags": [
+				"-preview=rvaluerefparam",
+				"-preview=intpromote",
+			],
+			"lflags-windows": [
+				"/NODEFAULTLIB:libcmt.lib"
+			],
+			"dependencies": {
+                "rt": { "path": "../libs/rt", "version": "*" },
+				"gfx": { "path": "../libs/gfx", "version": "*" },
+				"glfw": { "path": "../libs/glfw", "version": "*" },
+				"freetype": { "path": "../libs/freetype", "version": "*" },
+
+				"bindbc-opengl": "~>1.0.0",
+			},
+			"subConfigurations": {
+				"bindbc-opengl": "dynamicBC"
+			},
+		}
+	]
+}
