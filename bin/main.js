@@ -216,7 +216,7 @@
         env: env,
     };
 
-    WebAssembly.instantiateStreaming(fetch("./game.wasm",{ credentials: "same-origin" }), importObject)
+    WebAssembly.instantiateStreaming(fetch("game.wasm",{ credentials: "same-origin" }), importObject)
         .then(result => {
 
             console.log('JS: Loaded wasm file');
