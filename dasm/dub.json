@@ -3,9 +3,12 @@
 	"subPackages": [
 		"game",
 		"server",
+		"tools",
+		"libs",
 		"libs/rt",
 		"libs/gfx",
 		"libs/wasm",
-		"libs/glfw"
+		"libs/glfw",
+		"libs/freetype"
 	]
 }

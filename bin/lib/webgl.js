@@ -14,6 +14,8 @@
             var GLuniforms = [];
             var GLshaders = [];
             var GLprogramInfos = {};
+            var GLpackAlignment = 4;
+            var GLunpackAlignment = 4;
             var GLMINI_TEMP_BUFFER_SIZE = 256;
             var GLminiTempBuffer = null;
             var GLminiTempBufferViews = [0];
@@ -134,6 +136,44 @@
                     }
                 }
             }
+            
+            function webGLGetTexPixelData(type, format, width, height, pixels, internalFormat)
+            {
+                var sizePerPixel;
+                var numChannels;
+                switch(format)
+                {
+                    case 0x1906: case 0x1909: case 0x1902: numChannels = 1; break; //GL_ALPHA, GL_LUMINANCE, GL_DEPTH_COMPONENT
+                    case 0x190A: numChannels = 2; break; //GL_LUMINANCE_ALPHA
+                    case 0x1907: case 0x8C40: numChannels = 3; break; //GL_RGB, GL_SRGB_EXT
+                    case 0x1908: case 0x8C42: numChannels = 4; break; //GL_RGBA, GL_SRGB_ALPHA_EXT
+                    default: GLrecordError(0x0500); return null; //GL_INVALID_ENUM
+                }
+                switch (type)
+                {
+                    case 0x1401: sizePerPixel = numChannels*1; break; //GL_UNSIGNED_BYTE
+                    case 0x1403: case 0x8D61: sizePerPixel = numChannels*2; break; //GL_UNSIGNED_SHORT, GL_HALF_FLOAT_OES
+                    case 0x1405: case 0x1406: sizePerPixel = numChannels*4; break; //GL_UNSIGNED_INT, GL_FLOAT
+                    case 0x84FA: sizePerPixel = 4; break; //GL_UNSIGNED_INT_24_8_WEBGL/GL_UNSIGNED_INT_24_8
+                    case 0x8363: case 0x8033: case 0x8034: sizePerPixel = 2; break; //GL_UNSIGNED_SHORT_5_6_5, GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1
+                    default: GLrecordError(0x0500); return null; //GL_INVALID_ENUM
+                }
+
+                function roundedToNextMultipleOf(x, y) { return Math.floor((x + y - 1) / y) * y; }
+                var plainRowSize = width * sizePerPixel;
+                var alignedRowSize = roundedToNextMultipleOf(plainRowSize, GLunpackAlignment);
+                var bytes = (height <= 0 ? 0 : ((height - 1) * alignedRowSize + plainRowSize));
+
+                switch(type)
+                {
+                    case 0x1401: return MOD.HEAPU8.subarray((pixels),(pixels+bytes)); //GL_UNSIGNED_BYTE
+                    case 0x1406: return MOD.HEAPF32.subarray((pixels)>>2,(pixels+bytes)>>2); //GL_FLOAT
+                    case 0x1405: case 0x84FA: return MOD.HEAPU32.subarray((pixels)>>2,(pixels+bytes)>>2); //GL_UNSIGNED_INT, GL_UNSIGNED_INT_24_8_WEBGL/GL_UNSIGNED_INT_24_8
+                    case 0x1403: case 0x8363: case 0x8033: case 0x8034: case 0x8D61: return MOD.HEAPU16.subarray((pixels)>>1,(pixels+bytes)>>1); //GL_UNSIGNED_SHORT, GL_UNSIGNED_SHORT_5_6_5, GL_UNSIGNED_SHORT_4_4_4_4, GL_UNSIGNED_SHORT_5_5_5_1, GL_HALF_FLOAT_OES
+                    default: GLrecordError(0x0500); return null; //GL_INVALID_ENUM
+                }
+            }
+
             imports.glEnable = function(x0) { MOD.WGL.enable(x0); };
             imports.glDisable = function(x0) { MOD.WGL.disable(x0); };
             imports.glViewport = (x0, x1, x2, x3) => { MOD.WGL.viewport(x0, x1, x2, x3); };
@@ -289,6 +329,30 @@
                 else view = MOD.HEAPF32.subarray((value)>>2,(value+count*4)>>2);
                 MOD.WGL.uniformMatrix4fv(GLuniforms[loc], !!transpose, view);
             };
+
+            imports.glUniform1f = function(loc, v0) { MOD.WGL.uniform1f(GLuniforms[loc], v0); };
+            imports.glUniform1i = function(loc, v0) { MOD.WGL.uniform1i(GLuniforms[loc], v0); };
+            imports.glUniform2f = function(loc, v0, v1) { MOD.WGL.uniform2f(GLuniforms[loc], v0, v1); };
+            imports.glUniform3f = function(loc, v0, v1, v2) { MOD.WGL.uniform3f(GLuniforms[loc], v0, v1, v2); };
+        
+            imports.glUniform3fv = function(loc, count, value)
+            {
+                var view;
+                if (3*count <= GLMINI_TEMP_BUFFER_SIZE)
+                {
+                    // avoid allocation when uploading few enough uniforms
+                    view = GLminiTempBufferViews[3*count-1];
+                    for (var ptr = value>>2, i = 0; i != 3*count; i++)
+                    {
+                        view[i] = MOD.HEAPF32[ptr+i];
+                    }
+                }
+                else view = MOD.HEAPF32.subarray((value)>>2,(value+count*12)>>2);
+                MOD.WGL.uniform3fv(GLuniforms[loc], view);
+            };
+        
+            imports.glUniform4f = function(loc, v0, v1, v2, v3) { MOD.WGL.uniform4f(GLuniforms[loc], v0, v1, v2, v3); };
+        
 
             imports.glBufferData = function(target, size, data, usage)
             {
@@ -469,6 +533,76 @@
                 }
             };
 
+            
+	        imports.glActiveTexture = function(x0) { MOD.WGL.activeTexture(x0); };
+            imports.glDeleteTextures = function(n, textures)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var id = MOD.HEAP32[(((textures)+(i*4))>>2)];
+                    var texture = GLtextures[id];
+                    if (!texture) continue; // GL spec: "glDeleteTextures silently ignores 0s and names that do not correspond to existing textures".
+                    MOD.WGL.deleteTexture(texture);
+                    texture.name = 0;
+                    GLtextures[id] = null;
+                }
+            };
+
+
+            imports.glPixelStorei = function(pname, param)
+            {
+                if (pname == 0x0D05) GLpackAlignment = param; //GL_PACK_ALIGNMENT
+                else if (pname == 0x0cf5) GLunpackAlignment = param; //GL_UNPACK_ALIGNMENT
+                MOD.WGL.pixelStorei(pname, param);
+            };
+        
+            imports.glGenTextures = function(n, textures)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var texture = MOD.WGL.createTexture();
+                    if (!texture)
+                    {
+                        // GLES + EGL specs don't specify what should happen here, so best to issue an error and create IDs with 0.
+                        GLrecordError(0x0502); // GL_INVALID_OPERATION
+                        while(i < n) MOD.HEAP32[(((textures)+(i++*4))>>2)]=0;
+                        return;
+                    }
+                    var id = getNewId(GLtextures);
+                    texture.name = id;
+                    GLtextures[id] = texture;
+                    MOD.HEAP32[(((textures)+(i*4))>>2)]=id;
+                }
+            };
+
+            imports.glTexImage2D = function(target, level, internalFormat, width, height, border, format, type, pixels)
+            {
+                var pixelData = null;
+                if (pixels) pixelData = webGLGetTexPixelData(type, format, width, height, pixels, internalFormat);
+                MOD.WGL.texImage2D(target, level, internalFormat, width, height, border, format, type, pixelData);
+            };
+
+            imports.glTexParameteri = function(x0, x1, x2)
+            {
+                MOD.WGL.texParameteri(x0, x1, x2);
+            };
+        
+	        imports.glBindFramebuffer = function(target, framebuffer) { MOD.WGL.bindFramebuffer(target, framebuffer ? GLframebuffers[framebuffer] : null); };
+            imports.glBindTexture = function(target, texture) { MOD.WGL.bindTexture(target, texture ? GLtextures[texture] : null); };
+            imports.glDepthMask = function(flag) { MOD.WGL.depthMask(!!flag); };
+
+            imports.glDepthFunc = function(x0) { MOD.WGL.depthFunc(x0); };
+
+            imports.glDepthRange = function(zNear, zFar) { MOD.WGL.depthRange(zNear, zFar); };
+
+            imports.glDisable = function(x0) { MOD.WGL.disable(x0); };
+            
+            imports.glBlendFunc = function(x0, x1) { MOD.WGL.blendFunc(x0, x1); };
+            imports.glBlendFuncSeparate = function(x0, x1, x2, x3) { MOD.WGL.blendFuncSeparate(x0, x1, x2, x3); }
+            imports.glBlendColor = function(x0, x1, x2, x3) { MOD.WGL.blendColor(x0, x1, x2, x3); }
+            imports.glBlendEquation = function(x0) { MOD.WGL.blendEquation(x0); }
+            imports.glBlendEquationSeparate = function(x0, x1) { MOD.WGL.blendEquationSeparate(x0, x1); }
+
             // move that to a math.js file
             
             // why that is needed? it should be intrinsics
@@ -502,6 +636,16 @@
             imports.absf = (value) => {
                 return Math.abs(value);
             };
+            
+            imports.roundf = (value) => {
+                return Math.round(value);
+            };
+
+            imports.fmodf = (y, x) => {
+                return Math.atan2(y, x);
+            };
+
+
             
             imports.fmodf = (a, b) => {
                 return a%b;

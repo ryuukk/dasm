@@ -1,1 +1,6 @@
 .dub
+dub.selections.json
+.vs
+.vscode
+bin/game
+bin/game.exe

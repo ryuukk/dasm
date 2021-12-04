@@ -1,10 +1,11 @@
 {
 	"name": "gfx",
 	"targetType": "sourceLibrary",
-    "sourcePaths": [ "." ],
-	"importPaths": [ "." ],
 
-	"dependencies": {
-		"rt": { "path": "../rt", "version": "*" }
+	"sourcePaths": [ "src" ],
+	"importPaths": [ "src" ],
+
+	"dependencies": {		
+		"rt": { "path": "../rt", "version": "*" },
 	}
 }
