@@ -62,7 +62,7 @@
 				"-allow-undefined",
 			],
 			"sourceFiles": [
-				"/home/ryuukk/tmp/zlib.a"
+				"../libs/zlib/build/zlib.a"
 			],
 			"targetPath": "../../bin",
 			"versions": [ "GAME", "WASM"],
