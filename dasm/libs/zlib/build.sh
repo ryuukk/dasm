@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PATH_ZLIB=/home/ryuukk/tmp/zlib/
+PATH_ZLIB=/home/ryuukk/tmp/zlib
 
 mkdir -p build/
 cd build/
