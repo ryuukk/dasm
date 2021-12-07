@@ -6,7 +6,7 @@
 		"tools",
 		"libs",
 		"libs/rt",
-		"libs/gfx",
+		"libs/dawn",
 		"libs/wasm",
 		"libs/glfw",
 		"libs/freetype"

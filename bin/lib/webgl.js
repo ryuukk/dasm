@@ -1,7 +1,7 @@
 (function (MOD) {
     'use strict';
     MOD.libraries.push({
-        name: 'print',
+        name: 'webgl',
 
         import: (imports) => {
 

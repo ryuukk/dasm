@@ -38,7 +38,7 @@
 			],
 			"dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
-				"gfx": { "path": "../libs/gfx", "version": "*" },
+				"dawn": { "path": "../libs/dawn", "version": "*" },
 				"glfw": { "path": "../libs/glfw", "version": "*" },
 				"freetype": { "path": "../libs/freetype", "version": "*" },
 
@@ -58,8 +58,10 @@
 				"-preview=rvaluerefparam",
 			],
 			"lflags-ldc": [
-				"-L-z stack-size=1048576",
-				"-allow-undefined",
+                "-z","stack-size=1048576",
+                "--stack-first",
+
+				"-allow-undefined"
 			],
 			"sourceFiles": [
 				"../libs/zlib/build/zlib.a"
@@ -70,7 +72,7 @@
 			"dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
 				"wasm": { "path": "../libs/wasm", "version": "*" },
-				"gfx": { "path": "../libs/gfx", "version": "*" },
+				"dawn": { "path": "../libs/dawn", "version": "*" },
 			}
 		}
 	]

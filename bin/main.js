@@ -5,13 +5,21 @@
     var initTime;
     
     const memory = new WebAssembly.Memory({
-        initial: 128,
-        maximum: 512
+        initial: 1024,
+        maximum: 4096,
     });
 
     var env = 
     {
         memory: memory,
+
+        OVERFLOW_MEMCPY: () => {
+            throw Error("memcpy overflow!");
+        },
+
+        OVERFLOW_MEMSET: () => {
+            throw Error("memset overflow!");
+        },
 
         abort: () => {
             ABORT = true;
@@ -122,61 +130,13 @@
         // Set up the WebGL context for our OpenGL 2.0 emulation
         if (!WGL_init_context(canvas)) return;
 
-        window.onkeyup = function(ev) 
-        {
-            var code = ev.keyCode;
-            MOD.WA.exports.on_key_up(code);
 
-            console.log("UP "+ code);
+        for (var i = 0; i < MOD.libraries.length; i++) {
+            var lib = MOD.libraries[i];
+            if (lib.canvas_init) {
+                lib.canvas_init(canvas);
+            }
         }
-        window.onkeydown = function(ev) 
-        {
-            var code = ev.keyCode;
-            MOD.WA.exports.on_key_down(code);
-
-            if (ev.keyCode === 8 /* backspace */ || ev.keyCode === 9 /* tab */) {
-                ev.preventDefault();
-              }
-        },
-
-        window.onkeypress = function(ev) 
-        {
-            var code = ev.keyCode;
-            MOD.WA.exports.on_key_down(code);
-
-            if (ev.keyCode === 8 /* backspace */ || ev.keyCode === 9 /* tab */) {
-                ev.preventDefault();
-              }
-        },
-
-
-        canvas.addEventListener("touchmove", (ev) => {
-            MOD.WA.exports.on_mouse_move(ev.offsetX, ev.offsetY);
-        }, true);
-        canvas.addEventListener("touchstart", (ev) => { 
-            MOD.WA.exports.on_mouse_down(0);
-        }, true);
-        canvas.addEventListener("touchcancel", (ev) => {
-            MOD.WA.exports.on_mouse_up(0);
-        }, true);
-        canvas.addEventListener("touchend", (ev) => { 
-            MOD.WA.exports.on_mouse_up(0);
-        }, true);
-        canvas.addEventListener("mousemove", (ev) => { 
-            MOD.WA.exports.on_mouse_move(ev.offsetX, ev.offsetY);
-        }, true);
-        canvas.addEventListener("mousedown", (ev) => { 
-            MOD.WA.exports.on_mouse_down(ev.button);
-        }, true);
-        canvas.addEventListener("mouseup", (ev) => {
-            MOD.WA.exports.on_mouse_up(ev.button);
-        }, true);
-        canvas.addEventListener('wheel', (ev) => {  }, true);
-        canvas.addEventListener('mousewheel', (ev) => {  }, true);
-        canvas.addEventListener('mouseenter', (ev) => { }, true);
-        canvas.addEventListener('mouseleave', (ev) => { }, true);
-        canvas.addEventListener('drop', (ev) => {  }, true);
-        canvas.addEventListener('dragover', (ev) => {  }, true);
 
         console.log("JS: Canvas setup to: " + width +":"+height);
         var sts = document.getElementById("wa_status");
@@ -247,7 +207,9 @@
             }
 
             // call _start
-            exports._start();
+
+            console.log("JS: caling _start, __heap_base:", result.instance.exports.__heap_base);
+            exports._start(result.instance.exports.__heap_base);
         })
         .catch(error=>{
           console.error('there was some error; ', error)

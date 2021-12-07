@@ -1,0 +1,11 @@
+{
+	"name": "dawn",
+	"targetType": "sourceLibrary",
+
+	"sourcePaths": [ "." ],
+	"importPaths": [ "." ],
+
+	"dependencies": {		
+		"rt": { "path": "../rt", "version": "*" },
+	}
+}

@@ -11,7 +11,7 @@ uint WAJS_sleep();
 
 
 // JS canvas API
-void WAJS_setup_canvas(size_t width, size_t height);
+void WAJS_setup_canvas(int width, int height);
 // ---
 
 // JS time API
@@ -35,7 +35,7 @@ void print_float(float value);
 void print_double(double value);
 void print_char(char value);
 void print_str(const char* value);
-void print_str_len(const char* value, size_t len);
+void print_str_len(const char* value, int len);
 void print_ptr(const (void)* value);
 // ---
 

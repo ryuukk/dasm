@@ -1,6 +1,6 @@
 {
 	"name": "freetype",
 	"targetType": "sourceLibrary",
-	"sourcePaths": [ "src" ],
-	"importPaths": [ "src" ],
+	"sourcePaths": [ "." ],
+	"importPaths": [ "." ],
 }

@@ -1,10 +1,11 @@
-import gfx;
 import dbg;
-import freetype;
-import font;
 import math;
 import memory;
-import texture;
+import freetype;
+
+import dawn.gfx;
+import dawn.font;
+import dawn.texture;
 
 
 FontAtlas ui_font;

@@ -33,7 +33,7 @@
 			],
 			"dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
-				"gfx": { "path": "../libs/gfx", "version": "*" },
+				"dawn": { "path": "../libs/dawn", "version": "*" },
 				"glfw": { "path": "../libs/glfw", "version": "*" },
 				"freetype": { "path": "../libs/freetype", "version": "*" },
 
