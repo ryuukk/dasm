@@ -340,6 +340,8 @@ enum : uint {
 
     
     GL_RED                            = 0x1903,
+
+    GL_DEPTH_COMPONENT24              = 0x81A6,
 }
 
 void glActiveTexture(GLenum texture );
@@ -356,7 +358,7 @@ void glBlendFunc(GLenum sfactor, GLenum dfactor);
 void glBlendFuncSeparate ( GLenum, GLenum dfactorRGB, GLenum, GLenum );
 void glBufferData(GLenum,GLsizeiptr,const(GLvoid)*,GLenum);
 // void glBufferSubData ( GLenum, GLintptr, GLsizeiptr, const void* );
-// GLenum glCheckFramebufferStatus ( GLenum );
+GLenum glCheckFramebufferStatus ( GLenum );
 void glClear(GLbitfield mask);
 void glClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha);
 // void glClearDepthf ( GLfloat );
@@ -371,7 +373,7 @@ GLuint glCreateProgram();
 GLuint glCreateShader(GLenum type);
 void glCullFace ( GLenum );
 void glDeleteBuffers ( GLsizei, const GLuint* );
-// void glDeleteFramebuffers ( GLsizei, const GLuint* );
+void glDeleteFramebuffers ( GLsizei, const GLuint* );
 // void glDeleteProgram ( GLuint );
 // void glDeleteRenderbuffers ( GLsizei, const GLuint* );
 // void glDeleteShader ( GLuint );
@@ -389,12 +391,13 @@ void glEnableVertexAttribArray(GLuint index);
 // void glFinish (  );
 // void glFlush (  );
 // void glFramebufferRenderbuffer ( GLenum, GLenum, GLenum, GLuint );
-// void glFramebufferTexture2D ( GLenum, GLenum, GLenum, GLuint, GLint );
+void glFramebufferTexture2D ( GLenum, GLenum, GLenum, GLuint, GLint );
 void glFrontFace ( GLenum );
 void glGenBuffers ( GLsizei, GLuint* );
 GLuint glCreateBuffer();
 // void glGenerateMipmap ( GLenum );
-// void glGenFramebuffers ( GLsizei, GLuint* );
+void glGenFramebuffers ( GLsizei, GLuint* );
+void glDrawBuffer(GLenum buf);
 // void glGenRenderbuffers ( GLsizei, GLuint* );
 void glGenTextures ( GLsizei, GLuint* );
 GLuint glCreateTexture();

@@ -378,7 +378,7 @@
                 }
                 else if (pname == 0x8B88) // GL_SHADER_SOURCE_LENGTH
                 {
-                    var source = GLctx.getShaderSource(GLshaders[shader]);
+                    var source = MOD.WGL.getShaderSource(GLshaders[shader]);
                     var sourceLength = (source === null || source.length == 0) ? 0 : source.length + 1;
                     MOD.HEAP32[((p)>>2)] = sourceLength;
                 }
@@ -602,6 +602,54 @@
             imports.glBlendColor = function(x0, x1, x2, x3) { MOD.WGL.blendColor(x0, x1, x2, x3); }
             imports.glBlendEquation = function(x0) { MOD.WGL.blendEquation(x0); }
             imports.glBlendEquationSeparate = function(x0, x1) { MOD.WGL.blendEquationSeparate(x0, x1); }
+
+
+
+
+            imports.glDeleteFramebuffers = function(n, framebuffers)
+            {
+                for (var i = 0; i < n; ++i)
+                {
+                    var id = MOD.HEAP32[(((framebuffers)+(i*4))>>2)];
+                    var framebuffer = GLframebuffers[id];
+                    if (!framebuffer) continue; // GL spec: "glDeleteFramebuffers silently ignores 0s and names that do not correspond to existing framebuffer objects".
+                    MOD.WGL.deleteFramebuffer(framebuffer);
+                    framebuffer.name = 0;
+                    GLframebuffers[id] = null;
+                }
+            };
+            imports.glFramebufferTexture2D = function(target, attachment, textarget, texture, level) 
+            {
+                const h = GLtextures[texture];
+                MOD.WGL.framebufferTexture2D(target, attachment, textarget, h, level);
+            };
+            imports.glGenFramebuffers = function(n, ids)
+            {
+                for (var i = 0; i < n; ++i)
+                {
+                    var framebuffer = MOD.WGL.createFramebuffer();
+                    if (!framebuffer)
+                    {
+                        GLrecordError(0x0502); // GL_INVALID_OPERATION
+                        while(i < n) MOD.HEAP32[(((ids)+(i++*4))>>2)]=0;
+                        return;
+                    }
+                    var id = getNewId(GLframebuffers);
+                    framebuffer.name = id;
+                    GLframebuffers[id] = framebuffer;
+                    MOD.HEAP32[(((ids)+(i*4))>>2)] = id;
+                }
+            };
+
+            imports.glDrawBuffer = function(buf)
+            {
+                MOD.WGL.drawBuffers([buf]);
+            };
+
+            imports.glCheckFramebufferStatus = function(target)
+            {
+                return MOD.WGL.checkFramebufferStatus(target);
+            };
 
             // move that to a math.js file
             
