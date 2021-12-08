@@ -301,7 +301,7 @@ struct FS
 
         if (!file.open(cast(string) fullpath))
         {
-            writeln("can't open {}", fullpath.ptr);
+            LWARN("can't open {}", fullpath.ptr);
             return false;
         }
 
@@ -327,7 +327,7 @@ struct FS
 
         if (!file.open(cast(string) fullpath))
         {
-            writeln("can't open {}", fullpath.ptr);
+            LWARN("can't open {}", fullpath.ptr);
             return false;
         }
 
@@ -388,12 +388,12 @@ struct FS
                 index = i;
                 if (q.is_canceled())
                 {
-                    writeln("canceled {}", id);
+                    LINFO("canceled {}", id);
                     break;
                 }
                 if (!ok)
                 {
-                    writeln("failed {}", id);
+                    LWARN("failed {}", id);
                     q.flags |= AsyncItem.Flags.FAILED;
                 }
                 else

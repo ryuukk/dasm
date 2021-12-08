@@ -2,10 +2,6 @@ module dawn.microui;
 
 version (DESKTOP):
 
-import core.stdc.stdlib;
-import core.stdc.stdio;
-//import core.stdc.string;
-
 import rt.memory;
 import rt.str;
 import rt.dbg;

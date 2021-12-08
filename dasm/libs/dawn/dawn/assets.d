@@ -219,7 +219,7 @@ struct Texture
 
     bool load(uint size, const(ubyte)* buffer)
     {
-        writeln("texture: {} size: {} bytes", base.path, size);
+        LINFO("texture: {} size: {} bytes", base.path, size);
         import dawn.image;
 
         IFImage a = read_image(buffer[0 .. size], 4);
@@ -265,7 +265,7 @@ struct ModelAsset
     bool load(uint size, const(ubyte)* buffer)
     {
         import rt.readers;
-        writeln("model: {} size: {} bytes", base.path, size);
+        LINFO("model: {} size: {} bytes", base.path, size);
 
         PReader reader;
         reader._data = buffer[0 .. size];
@@ -309,7 +309,7 @@ struct ResourceCache
         }
         if (idtoremove > 0)
         {
-            writeln("Remove: {}:{}", idtoremove, resource.path);
+            LINFO("Remove: {}:{}", idtoremove, resource.path);
             map.erase(idtoremove);
             resource.do_unload();
         }

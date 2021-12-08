@@ -62,19 +62,8 @@ alias writelnf = writeln;
 
 void LINFO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
-    version(WASM)
-    {
-        print_char('[');
-        print_str(file.ptr);
-        print_char(':');    
-        print_int(line);
-        print_char(']');
-        print_char(' ');
-    }
-    else
-    {
-        printf("[%s:%d] ", file.ptr, line);
-    }
+    version (PRINT_PATH)
+        print_path(file, line);
 
     print_str("[INFO] ");
 
@@ -84,20 +73,8 @@ void LINFO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
 }
 void LWARN(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
-    version(WASM)
-    {
-        print_char('[');
-        print_str(file.ptr);
-        print_char(':');    
-        print_int(line);
-        print_char(']');
-        print_char(' ');
-    }
-    else
-    {
-        printf("[%s:%d] ", file.ptr, line);
-    }
-
+    version (PRINT_PATH)
+        print_path(file, line);
     print_str("[WARN] ");
 
     writef_impl(fmt, args);
@@ -107,19 +84,8 @@ void LWARN(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
 
 void LERRO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
-    version(WASM)
-    {
-        print_char('[');
-        print_str(file.ptr);
-        print_char(':');    
-        print_int(line);
-        print_char(']');
-        print_char(' ');
-    }
-    else
-    {
-        printf("[%s:%d] ", file.ptr, line);
-    }
+    version (PRINT_PATH)
+        print_path(file, line);
 
     print_str("[ERRO] ");
 
@@ -131,18 +97,9 @@ void LERRO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
 
 void writeln(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
-    version(WASM)
-    {
-        print_char('[');
-        print_str(file.ptr);
-        print_char(':');    
-        print_int(line);
-        print_char(']');
-        print_char(' ');
-    }
-    else
-        printf("[%s:%d] ", file.ptr, line);
-
+    version (PRINT_PATH)
+        print_path(file, line);
+    
     writef_impl(fmt, args);
 
     print_char('\n');
@@ -150,18 +107,8 @@ void writeln(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line
 
 void writef(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
-    version(WASM)
-    {
-        print_char('[');
-        print_str(file.ptr);
-        print_char(':');    
-        print_int(line);
-        print_char(']');
-        print_char(' ');
-    }
-    else
-        printf("[%s:%d] ", file.ptr, line);
-
+    version (PRINT_PATH)
+        print_path(file, line);
     writef_impl(fmt, args);
 }
 
@@ -295,6 +242,22 @@ void writef_impl(Char, A...)(in Char[] fmt, A args)
         //printf("%.*s", cast(int) (fmt.length - c), fmt[c .. $].ptr);
         print_str_len(&fmt[c], cast(int) (fmt.length - c));
     }
+}
+
+
+void print_path(string file, int line)
+{
+    version(WASM)
+    {
+        print_char('[');
+        print_str(file.ptr);
+        print_char(':');    
+        print_int(line);
+        print_char(']');
+        print_char(' ');
+    }
+    else
+        printf("[%s:%d] ", file.ptr, line);
 }
 
 version (WASM)

@@ -364,6 +364,10 @@ version (WASM)
     {
         engine.track();
 
+        glViewport(0, 0, engine.back_buffer_width, engine.back_buffer_height);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClearColor(0.2, 0.2, 0.2, 1);
+
         if (engine.tick_cb)
             engine.tick_cb(&engine, engine.delta_time);
         
