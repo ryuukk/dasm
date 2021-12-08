@@ -1,11 +1,15 @@
-module login;
+module states.login;
 
+import app;
 
-struct LoginState
+import rt.dbg;
+
+void login_init(State* state)
 {
-    void create()
-    {}
+    LINFO("Login: init");
+}
 
-    void render()
-    {}
+void login_render(State* state, float dt)
+{
+
 }

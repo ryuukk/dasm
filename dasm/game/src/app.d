@@ -1,3 +1,4 @@
+module app;
 
 import rt.math;
 import rt.time;
@@ -5,100 +6,155 @@ import rt.memory;
 import rt.dbg;
 
 import dawn.gfx;
+import dawn.renderer;
 import dawn.gl;
 import dawn.mesh;
 import dawn.camera;
 import dawn.assets;
+import dawn.texture;
 
-const(char)[] shader_v = "#version 300 es
-    #ifdef GL_ES
-    precision lowp float;
-    #endif	
+import states.splash;
+import states.login;
+import states.gameplay;
 
-    uniform mat4 u_mvp;
-    uniform mat4 u_transform;
-    in vec4 a_position;
-    in vec3 a_normal;
-    out vec3 v_col;
-    void main()
-    {
-        v_col = a_normal;
-        gl_Position = u_mvp * u_transform * a_position;
-    }
-";
+enum StateID
+{
+    NONE,
+    SPLASH, LOGIN, GAMEPLAY,
+    MAX
+}
 
-const(char)[] shader_f = "#version 300 es
-    #ifdef GL_ES
-    precision lowp float;
-    #endif	
+struct State
+{
+    alias init_cb_t = void function(State*);
+    alias exit_cb_t = void function(State*);
+    alias render_cb_t = void function(State*, float dt);
 
-    in vec3 v_col;
-    out vec4 f_col;
-    void main()
-    {
-        f_col = vec4(v_col, 1.0);
-    }
-";
+    Context* ctx;
+    init_cb_t init_cb;
+    render_cb_t render_cb;
+    exit_cb_t exit_cb;
 
+    float t_out = 0;
+    float t_in = 0;
+}
 
-Allocator* allocator;
-ShaderProgram program;
-Mesh cube_mesh;
-mat4 transform = mat4.identity;
-float a = 0;
-Texture* tex;
-ModelAsset* mdl;
-Texture* tex2;
+struct Context
+{
+    State[StateID.MAX] states = [
+
+        StateID.SPLASH: {
+            init_cb: &splash_init,
+            render_cb: &splash_render,
+        },
+
+        StateID.LOGIN: {
+            init_cb: &login_init,
+            render_cb: &login_render,
+        },
+
+        StateID.GAMEPLAY: {
+            init_cb: &gameplay_init,
+            render_cb: &gameplay_render,
+        },
+    ];
+    StateID curr_state;
+    StateID next_state;
+
+    Framebuffer fb;
+
+    bool in_transition = false;
+    bool transition_finished = true;
+
+    float transition_time = 0.75;
+    float transition_current = 0.0;
+}
+
+Context ctx;
 
 void main()
 {
-    writeln("main() found");
-    create_engine(800, 600, &on_start, &on_exit, &on_tick);
+    LINFO("main() found");
+    create_engine(1280, 720, &on_start, &on_exit, &on_tick);
 }
 
 void on_start(Engine* e)
-{    
-    
-    tex = renderer.cache.load!(Texture)("res/textures/uv_grid.png");
-    mdl = renderer.cache.load!(ModelAsset)("res/models/male.bin");
+{
+    for(int i = 0; i < StateID.MAX; i++)
+    {
+        auto state = &ctx.states[i];
+        state.ctx = &ctx;
+        if (state.init_cb)
+            state.init_cb(state);
+    }
 
-    program.create(shader_v, shader_f);
-    assert(program.is_compiled, "can't compile shader");
-
-    create_cube_mesh(&cube_mesh);
+    ctx.fb.create(e.iwidth, e.iheight, true, true, true);
 }
 
 void on_exit(Engine* e)
 {
-    writeln("--end");
+    for(int i = 0; i < StateID.MAX; i++)
+    {
+        auto state = &ctx.states[i];
+        if (state.exit_cb)
+            state.exit_cb(state);
+    }
+    LINFO("--end");
 }
 
 void on_tick(Engine* e, float dt)
 {
-    if (engine.input.is_key_just_pressed(Key.KEY_A))
-    {
-    }
-    if (engine.input.is_key_just_pressed(Key.KEY_SPACE))
-    {
-    }
-
-    a += 5 * dt;
-    transform = mat4.set(v3(0, 0, 0), quat.fromAxis(0, 1, 0, a), v3(1, 1, 1));
-
-    renderer.camera.update();
-
-    program.bind();
-    program.set_uniform_mat4("u_mvp", &renderer.camera.combined);
-    program.set_uniform_mat4("u_transform", &transform);
     
-    cube_mesh.render(&program, GL_TRIANGLES);
-
-    renderer.spritebatch.begin();
-
-    if (tex && tex.base.is_ready())
+    if (ctx.curr_state == StateID.NONE && ctx.next_state == StateID.NONE)
     {
-        renderer.spritebatch.draw(&tex.tex, 0,0, 128, 128);
+        set_state(StateID.SPLASH);
     }
 
-    renderer.spritebatch.end();    
+    if (ctx.next_state != StateID.NONE)
+    {
+        ctx.curr_state = ctx.next_state;
+        ctx.next_state = StateID.NONE;
+        LINFO("New current state: {}", ctx.next_state);
+    }
+
+    ctx.fb.bind();
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.2, 0.2, 0.6, 1.0);
+
+    auto state = &ctx.states[ctx.curr_state];
+    if (state.render_cb)
+        state.render_cb(state, dt);
+    
+    ctx.fb.unbind_n();
+
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.2, 0.2, 0.6, 1.0);
+    renderer.state.set_depth_state( DepthState.Default);
+    renderer.spritebatch.begin();
+    renderer.spritebatch.draw(&ctx.fb.tex_depth, 256, 0, 256, 256, true);
+    renderer.spritebatch.draw(&ctx.fb.tex_color, 0, 0, 256, 256, true);
+    renderer.spritebatch.draw(&ctx.fb.tex_color, 0, 0, e.width, e.height, true);
+    renderer.spritebatch.end();
 }
+
+State* get_current_state()
+{
+    return &ctx.states[ctx.curr_state];
+}
+
+void set_state(StateID id)
+{
+    ctx.next_state = id;
+    ctx.states[id].t_in = ctx.transition_time;
+
+    if (ctx.curr_state != StateID.NONE)
+        ctx.states[ctx.curr_state].t_out = ctx.transition_time;
+}
+
+void draw_fade_in()
+{}
+
+void draw_fade_out()
+{}
