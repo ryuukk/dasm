@@ -19,6 +19,7 @@
             var GLMINI_TEMP_BUFFER_SIZE = 256;
             var GLminiTempBuffer = null;
             var GLminiTempBufferViews = [0];
+            var GLlastError;
             
             GLminiTempBuffer = new Float32Array(GLMINI_TEMP_BUFFER_SIZE);
             for (var i = 0; i < GLMINI_TEMP_BUFFER_SIZE; i++) GLminiTempBufferViews[i] = GLminiTempBuffer.subarray(0, i+1);
@@ -173,7 +174,24 @@
                     default: GLrecordError(0x0500); return null; //GL_INVALID_ENUM
                 }
             }
-
+            function GLrecordError(err)
+            {
+                if (!GLlastError)
+                {
+                    GLlastError = err;
+                    console.error("gl error:", err);
+                }
+            }
+            imports.glGetError = function()
+            {
+                if (GLlastError)
+                {
+                    var e = GLlastError;
+                    GLlastError = 0;
+                    return e;
+                }
+                return GLctx.getError();
+            };
             imports.glEnable = function(x0) { MOD.WGL.enable(x0); };
             imports.glDisable = function(x0) { MOD.WGL.disable(x0); };
             imports.glViewport = (x0, x1, x2, x3) => { MOD.WGL.viewport(x0, x1, x2, x3); };
@@ -182,6 +200,9 @@
             imports.glColorMask = (red, green, blue, alpha) => { MOD.WGL.colorMask(!!red, !!green, !!blue, !!alpha); };
         
 
+            imports.glFrontFace = function(mode) { MOD.WGL.frontFace(mode); };
+            imports.glCullFace = function(mode) { MOD.WGL.cullFace(mode); };
+            imports.glScissor = function(x0, x1, x2, x3) { MOD.WGL.scissor(x0, x1, x2, x3); };
             imports.glCreateProgram = function () {
                 var id = getNewId(GLprograms);
                 var program = MOD.WGL.createProgram();

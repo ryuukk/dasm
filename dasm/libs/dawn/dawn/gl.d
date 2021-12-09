@@ -443,7 +443,7 @@ void glPixelStorei ( GLenum, GLint );
 // void glReleaseShaderCompiler (  );
 // void glRenderbufferStorage ( GLenum, GLenum, GLsizei, GLsizei );
 // void glSampleCoverage ( GLfloat, GLboolean );
-// void glScissor ( GLint, GLint, GLsizei, GLsizei );
+void glScissor ( GLint, GLint, GLsizei, GLsizei );
 // void glShaderBinary ( GLsizei, const GLuint*, GLenum, const void*, GLsizei );
 void glShaderSource(GLuint,GLsizei,const(GLchar*)*,const(GLint)*);
 // void glStencilFunc ( GLenum, GLint, GLuint );
