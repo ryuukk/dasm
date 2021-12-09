@@ -75,6 +75,7 @@ Context ctx;
 void main()
 {
     LINFO("main() found");
+
     create_engine(1280, 720, &on_start, &on_exit, &on_tick);
 }
 
@@ -88,7 +89,7 @@ void on_start(Engine* e)
             state.init_cb(state);
     }
 
-    ctx.fb.create(e.iwidth, e.iheight, true, true, true);
+    // ctx.fb.create(e.iwidth, e.iheight, true, true, true);
 }
 
 void on_exit(Engine* e)
@@ -117,26 +118,26 @@ void on_tick(Engine* e, float dt)
         LINFO("New current state: {}", ctx.next_state);
     }
 
-    ctx.fb.bind();
+    // ctx.fb.bind();
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.2, 0.2, 0.6, 1.0);
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // glClearColor(0.2, 0.2, 0.6, 1.0);
 
     auto state = &ctx.states[ctx.curr_state];
     if (state.render_cb)
         state.render_cb(state, dt);
     
-    ctx.fb.unbind_n();
+    // ctx.fb.unbind_n();
 
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.2, 0.2, 0.6, 1.0);
-    renderer.state.set_depth_state( DepthState.Default);
-    renderer.spritebatch.begin();
-    renderer.spritebatch.draw(&ctx.fb.tex_depth, 256, 0, 256, 256, true);
-    renderer.spritebatch.draw(&ctx.fb.tex_color, 0, 0, 256, 256, true);
-    renderer.spritebatch.draw(&ctx.fb.tex_color, 0, 0, e.width, e.height, true);
-    renderer.spritebatch.end();
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // glClearColor(0.2, 0.2, 0.6, 1.0);
+    // renderer.state.set_depth_state( DepthState.Default);
+    // renderer.spritebatch.begin();
+    // renderer.spritebatch.draw(&ctx.fb.tex_depth, 256, 0, 256, 256, true);
+    // renderer.spritebatch.draw(&ctx.fb.tex_color, 0, 0, 256, 256, true);
+    // renderer.spritebatch.draw(&ctx.fb.tex_color, 0, 0, e.width, e.height, true);
+    // renderer.spritebatch.end();
 }
 
 State* get_current_state()

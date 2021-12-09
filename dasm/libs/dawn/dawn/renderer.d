@@ -13,12 +13,15 @@ import dawn.spritebatch;
 import dawn.gfx;
 import dawn.mesh;
 import dawn.texture;
+import dawn.font;
 import dawn.assets;
+import mu = dawn.microui;
 
 struct Renderer
 {
     RenderState state;
-    ResourceCache cache;
+    Texture2D ui_atlas;
+    FontCache font_cache;
 
     Camera camera;
     Registry registry;
@@ -27,15 +30,23 @@ struct Renderer
 
     Engine* engine;
 
+    Allocator* allocator;
+
     void create(Engine* engine)
     {
+        LINFO("Create renderer");
         this.engine = engine;
-        //init_renderer();
+        this.allocator = MALLOCATOR.ptr();
 
-        cache.create();
-        
+        glBindVertexArray(0);
+        glUseProgram(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
         state.set_blend_state(BlendState.AlphaBlend);
-        state.set_depth_state(DepthState.Default, true);
+        state.set_depth_state(DepthState.Default);
+        state.set_polygon_state(PolygonState.None);
+
 
         camera = Camera.init_perspective(60, engine.width, engine.height);
         camera.near = 0.1;
@@ -47,26 +58,15 @@ struct Renderer
         camera.look_at(0, 0, 0);
         camera.update();
 
-        registry.create(MALLOCATOR.ptr());
+        registry.create(allocator);
 
         spritebatch.create(engine);
-    }
 
-    void init_renderer()
-    {
-        glBindVertexArray(0);
-        glUseProgram(0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        for(int i = 0; i < 16; i++)
-        {
-            glActiveTexture(GL_TEXTURE0 + 1);
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
+        ui_atlas = create_texture(mu.ATLAS_WIDTH, mu.ATLAS_HEIGHT, mu.atlas_texture.ptr, PixelFormat.Alpha);
     }
 
     void tick()
     {
-        cache.process();
         foreach(Event* e; engine.queue)
         {
             switch (e.type) with(EventType)
@@ -76,15 +76,209 @@ struct Renderer
                     camera.viewport_width = e.resize.width;
                     camera.viewport_height = e.resize.height;
                     camera.update();
+
+                    auto pm = mat4.create_orthographic_offcenter(0f, 0f, e.resize.width, e.resize.height);
+                    spritebatch.set_proj(pm);
+
                 break;
 
                 default: break;
             }
         }
-
     }
 }
 
+
+ubyte[256] button_map =
+[
+    (cast(ubyte) Mouse.LEFT   & 0xff):  mu.MOUSE_LEFT,
+    (cast(ubyte) Mouse.RIGHT  & 0xff):  mu.MOUSE_RIGHT,
+    (cast(ubyte) Mouse.MIDDLE & 0xff):  mu.MOUSE_MIDDLE,
+];
+
+ubyte[256] key_map = 
+[
+    (cast(ubyte) Key.KEY_LEFT_SHIFT    & 0xff): mu.KEY_SHIFT,
+    // (cast(ubyte) Key.KEY_RIGHT_SHIFT   & 0xff): mu.KEY_SHIFT,
+    (cast(ubyte) Key.KEY_LEFT_CONTROL  & 0xff): mu.KEY_CTRL,
+    // (cast(ubyte) Key.KEY_RIGHT_CONTROL & 0xff): mu.KEY_CTRL,
+    (cast(ubyte) Key.KEY_LEFT_ALT      & 0xff): mu.KEY_ALT,
+    // (cast(ubyte) Key.KEY_RIGHT_ALT     & 0xff): mu.KEY_ALT,
+    (cast(ubyte) Key.KEY_ENTER         & 0xff): mu.KEY_RETURN,
+    (cast(ubyte) Key.KEY_BACKSPACE     & 0xff): mu.KEY_BACKSPACE,
+    (cast(ubyte) Key.KEY_LEFT          & 0xff): mu.KEY_LEFT,
+    (cast(ubyte) Key.KEY_RIGHT         & 0xff): mu.KEY_RIGHT,
+];
+
+int text_width(mu.Font font, const char* text, int len)
+{
+    import rt.str;
+    auto fc = cast(FontCache*) font;
+    if (!fc) return 0;
+
+    if (len == -1)
+        len = cast(int) str_len(text);
+
+    auto b = fc.font.get_bounds(text, 0, len);
+    return cast(int)b.width;
+}
+
+int text_height(mu.Font font)
+{
+    auto fc = cast(FontCache*) font;
+    if (!fc) return 0;
+
+    return fc.font.line_height;
+}
+
+void process_ui(mu.Context* ctx)
+{
+    foreach(Event* e; engine.queue)
+    {
+        switch(e.type) with(EventType)
+        {
+            case INPUT_MOUSE_MOVED:
+            mu.input_mousemove(ctx, e.touch_moved.screen_x, e.touch_moved.screen_y);
+            if(ctx.hover_root) e.consumed = true;
+            break;
+            case INPUT_TOUCH_DRAGGED:
+            mu.input_mousemove(ctx, e.touch_moved.screen_x, e.touch_moved.screen_y);
+            if(ctx.hover_root) e.consumed = true;
+            break;
+            case INPUT_TOUCH_DOWN:
+            mu.input_mousedown(ctx, e.touch_down.screen_x, e.touch_down.screen_y, button_map[e.touch_down.button]);
+            if(ctx.hover_root) e.consumed = true;            
+            break;
+            case INPUT_TOUCH_UP:
+            mu.input_mouseup(ctx, e.touch_up.screen_x, e.touch_up.screen_y, button_map[e.touch_up.button]);
+            if(ctx.hover_root) e.consumed = true;
+            break;
+            case INPUT_KEY_DOWN:
+            mu.input_keydown(ctx, key_map[e.key_down.key]);
+            if(ctx.focus) e.consumed = true;
+            break;
+            case INPUT_KEY_UP:
+            mu.input_keyup(ctx, key_map[e.key_up.key]);
+            if(ctx.focus) e.consumed = true;
+            break;
+            case INPUT_KEY_TYPED:
+            mu.input_text(ctx, cast(const char*) &e.key_typed.character);
+            if(ctx.focus) e.consumed = true;
+            break;
+            default:
+        }
+    }
+}
+
+void render_ui(mu.Context* ctx, FontCache* font_cache, SpriteBatch* batch)
+{
+    import rt.str;
+    engine.renderer.state.set_depth_state(DepthState.None);
+    glEnable(GL_SCISSOR_TEST);
+    batch.begin();
+
+    mu.Command* cmd = null;
+    while (mu.next_command(ctx, &cmd))
+    {
+        final switch (cmd.type)
+        {
+        case mu.COMMAND_TEXT: /* r_draw_text(cmd.text.str, cmd.text.pos, cmd.text.color); */ 
+        
+            float x = cmd.text.pos.x;
+            float y = cmd.text.pos.y;
+            
+            // flip for Y up
+            y = (engine.height - font_cache.font.line_height - y);
+
+            // batch.set_color(Color.GREEN.tupleof);
+            // batch.draw_rect(x, y, 16, font_cache.font.line_height);
+
+            y += font_cache.font.line_height;
+
+            font_cache.clear();
+            font_cache.set_tint(Color(cmd.text.color.tupleof));
+
+            auto l = str_len(cmd.text.str.ptr);
+            auto b = font_cache.add_text(cmd.text.str.ptr[0 .. l], x, y);
+
+            // batch.set_color(cmd.text.color.tupleof);
+            // batch.draw_rect(x, y, b.width, b.height);
+
+            font_cache.draw(batch);
+            font_cache.clear();
+            // TODO: BUG: font cache shouldn't need to be cleared twice..
+            // i suspect a bug somewhere, but idk wher yet
+            // i need to investigate..
+
+        
+        break;
+        case mu.COMMAND_RECT: /* r_draw_rect(cmd.rect.rect, cmd.rect.color);               */ 
+
+            float x = cmd.rect.rect.x;
+            float y = cmd.rect.rect.y;
+            float w = cmd.rect.rect.w;
+            float h = cmd.rect.rect.h;
+
+            // flip for Y up
+            y = (engine.height - h - y);
+
+            batch.set_color(cmd.rect.color.tupleof);
+            batch.draw_rect_filled(x, y, w, h);
+
+        break;
+        case mu.COMMAND_ICON: /* r_draw_icon(cmd.icon.id, cmd.icon.rect, cmd.icon.color); */
+            float x = cmd.icon.rect.x;
+            float y = cmd.icon.rect.y;
+            float w = cmd.icon.rect.w;
+            float h = cmd.icon.rect.h;
+        
+            // flip for Y up
+            y = (engine.height - h - y);
+            batch.set_color(cmd.icon.color.tupleof);
+            
+            auto src = mu.atlas[cmd.icon.id];
+            batch.draw(&font_cache.font.atlas,
+                Rectf(cast(float) src.x, cast(float) src.y, cast(float) src.w, cast(float) src.h),
+                x, y, 0, 0, w, h, 1, 1, 0
+            );
+
+        break;
+        case mu.COMMAND_CLIP: /* r_set_clip_rect(cmd.clip.rect);                            */ 
+            int x = cmd.clip.rect.x;
+            int y = cmd.clip.rect.y;
+            int w = cmd.clip.rect.w;
+            int h = cmd.clip.rect.h;
+
+            // // flip for Y 
+            // y = (game.engine.gfx.get_iheight - h - y);
+
+            // LINFO("scisor! %d:%d:%d:%d", x, y, w, h);
+
+            // x, y, z, w
+            // x, y, w, h
+            //glScissor((int)pcmd.ClipRect.x,
+            // (int)(fb_height - pcmd.ClipRect.h),
+            // (int)(pcmd.ClipRect.w - pcmd.ClipRect.x),
+            //  (int)(pcmd.ClipRect.h - pcmd.ClipRect.y));
+
+            auto clipy = engine.iheight - (cmd.clip.rect.y + cmd.clip.rect.h);
+
+            batch.flush();
+            glScissor(
+                    cmd.clip.rect.x,
+                    cast(uint)clipy,
+                    cmd.clip.rect.w,
+                    cmd.clip.rect.h
+            );
+            // batch.set_color(Color.RED.tupleof);
+            // batch.draw_rect(Rectf(cmd.clip.rect.x,clipy,cmd.clip.rect.w,cmd.clip.rect.h));
+            break;
+        }
+    }
+    batch.end();
+
+    batch.color = Color.WHITE;
+}
 
 struct EntityRenderer
 {
@@ -195,7 +389,7 @@ struct EntityShader
         ;
     }
 
-    void begin(Camera* camera)
+    void beginf(Camera* camera)
     {
 
         if(!program.is_compiled)
@@ -565,6 +759,8 @@ struct PolygonState
         else
         {
             glDisable(GL_CULL_FACE);
+            glFrontFace(front_face);
+            glCullFace(cull_face);
         }
     }
 

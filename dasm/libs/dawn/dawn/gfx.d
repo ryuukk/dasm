@@ -4,8 +4,10 @@ import rt.dbg;
 import rt.time;
 import rt.math;
 import rt.filesystem;
+import rt.memory;
 
 import dawn.gl;
+import dawn.assets;
 import dawn.renderer;
 
 
@@ -45,11 +47,13 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
     engine.exit_cb = ecb;
     engine.tick_cb = tcb;
 
+    engine.allocator = MALLOCATOR.ptr();
+    engine.cache.create();
     version(WASM)
     {
         WAJS_setup_canvas(width, height);
 
-        renderer.create(&engine);
+        engine.renderer.create(&engine);
         if (icb)
             icb(&engine);
     }
@@ -65,7 +69,6 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
         glfwWindowHint(GLFW_RESIZABLE, 1);
-
         // delay window opening to avoid positioning glitch and white window
         glfwWindowHint(GLFW_VISIBLE, 0);
 
@@ -75,6 +78,19 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
             glfwTerminate();
             panic("Unnable to create window");
         }
+
+
+        GLFWimage icn;
+        icn.width = 16;
+        icn.height = 16;
+        ubyte[16 * 16 * 4] pixels = 0;
+        icn.pixels = pixels.ptr;
+        const(char)* err;
+        glfwSetWindowIcon(engine.window_ptr, 1, &icn);
+        glfwGetError(&err);
+        if (err)
+            LERRO("glfw error: {}", err);
+
 		auto primaryMonitor = glfwGetPrimaryMonitor();
 
         
@@ -121,8 +137,7 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
         glfwSetCursorPosCallback(engine.window_ptr, &on_cursor_pos_cb);
         glfwSetMouseButtonCallback(engine.window_ptr, &on_mouse_button_cb);
 
-
-        renderer.create(&engine);
+        engine.renderer.create(&engine);
         if (icb)
             icb(&engine);
 
@@ -131,23 +146,26 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
         {
             glfwMakeContextCurrent(engine.window_ptr);
             glfwSwapInterval(1);
-
+            
             engine.track();
 
+            engine.cache.process();
+        
             glViewport(0, 0, engine.back_buffer_width, engine.back_buffer_height);
+
 	        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	        glClearColor(0.2, 0.2, 0.2, 1);
 
+            engine.renderer.tick();
             engine.tick_cb(&engine, engine.delta_time);
-            renderer.tick();
 
             if (engine.iconified == false)
                 engine.input.prepare_next();
             
             engine.queue.clear();
 
-            glfwPollEvents();
             glfwSwapBuffers(engine.window_ptr);
+            glfwPollEvents();
 
             engine.closed = glfwWindowShouldClose(engine.window_ptr) == 1;
         }
@@ -213,7 +231,6 @@ version (DESKTOP)
 }
 
 Engine engine;
-Renderer renderer;
 
 alias on_init_t = void function(Engine*);
 alias on_exit_t = void function(Engine*);
@@ -238,6 +255,9 @@ struct Engine
 
     EventQueue queue;
     Input input;
+    Renderer renderer;
+    ResourceCache cache;
+    Allocator* allocator;
 
     double last_frame_time = -1;
     float delta_time = 0;
@@ -245,9 +265,13 @@ struct Engine
     double frame_counter_start = 0;
     int frames = 0;
     int fps = 0;
-
     
     HdpiMode hdpi_mode = HdpiMode.LOGICAL;
+
+    void create()
+    {
+        cache.create();
+    }
 
     void track()
     {
@@ -363,6 +387,7 @@ version (WASM)
     export extern (C) void WA_render()
     {
         engine.track();
+        engine.cache.process();
 
         glViewport(0, 0, engine.back_buffer_width, engine.back_buffer_height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -371,7 +396,7 @@ version (WASM)
         if (engine.tick_cb)
             engine.tick_cb(&engine, engine.delta_time);
         
-        renderer.tick();
+        engine.renderer.tick();
 
         if (!engine.iconified)
             engine.input.prepare_next();

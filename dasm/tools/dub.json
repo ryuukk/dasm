@@ -8,7 +8,7 @@
 			"targetPath": "../../bin",
 			"workingDirectory": "../../bin",
 			"sourceFiles": [ "src/gen_font.d" ],
-			"versions": [ "DESKTOP", "GL_30", "FT_211", "BindFT_Static"],
+			"versions": [ "DESKTOP", "GL_30", "GLFW_33", "FT_211", "BindFT_Static"],
 			"libs-windows": [
 				"user32",
 				"gdi32",

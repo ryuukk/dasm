@@ -27,7 +27,7 @@ version (Windows)
 }
 else version (Posix)
 {
-    import core.stdc.stdio : fopen, ftell, fseek, fread, fclose, FILE, SEEK_SET, SEEK_END;
+    import core.stdc.stdio : fopen, ftell, fseek, fread, fclose, fwrite, fflush, FILE, SEEK_SET, SEEK_END;
 }
 
 struct OutputStream
@@ -159,6 +159,84 @@ struct InputFile
         }
         else
             assert(0);
+    }
+}
+
+struct OutputFile
+{
+    void* handle;
+    bool is_error;
+
+    bool open(string path)
+    {
+        version (Windows)
+        {
+            handle = cast(HANDLE) CreateFileA(path.ptr, GENERIC_WRITE, 0, null, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, null);
+            is_error = INVALID_HANDLE_VALUE == handle;
+            return !m_is_error;
+        }
+        else version(Posix)
+        {
+            handle = cast(void*) fopen(path.ptr, "wb");
+            is_error = !handle;
+            return !is_error;
+        }
+        else assert(0);
+    }
+
+    void close()
+    {
+        version (Windows)
+        {
+            if (INVALID_HANDLE_VALUE != cast(HANDLE)handle)
+            {
+                CloseHandle(cast(HANDLE)m_handle);
+                handle = cast(void*)INVALID_HANDLE_VALUE;
+            }
+        }
+        else version(Posix)
+        {
+            if (handle)
+            {
+                fclose(cast(FILE*)handle);
+                handle = null;
+            }
+        }
+        else assert(0);
+    }
+
+    bool write(const(void)* data, size_t size)
+    {
+        version (Windows)
+        {
+            assert(INVALID_HANDLE_VALUE != cast(HANDLE)handle);
+            ulong written = 0;
+            WriteFile(cast(HANDLE)m_handle, data, cast(DWORD)size, cast(LPDWORD)&written, null);
+            is_error = is_error || size != written;
+            return !is_error;
+        }
+        else version(Posix)
+        {
+            assert(handle);
+            auto written = fwrite(data, size, 1, cast(FILE*)handle);
+            return written == 1;
+        }
+        else assert(0);
+    }
+
+    void flush()
+    {
+        version (Windows)
+        {
+            assert(null != handle);
+            FlushFileBuffers(cast(HANDLE)m_handle);
+        }
+        else version(Posix)
+        {
+            assert(handle);
+            fflush(cast(FILE*)handle);
+        }
+        else assert(0);
     }
 }
 

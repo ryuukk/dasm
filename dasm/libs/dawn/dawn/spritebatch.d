@@ -90,7 +90,7 @@ struct SpriteBatch
         pixel = create_texture(1,1, tmp.ptr);
     }
 
-    void set_proj(mat4 projection)
+    void set_proj(const ref mat4 projection)
     {
         assert(!_drawing, "must call end");
         _projectionMatrix = projection;
@@ -124,7 +124,7 @@ struct SpriteBatch
         if (_idx == 0)
             return;
             
-        renderer.state.set_blend_state(blend_state);
+        engine.renderer.state.set_blend_state(blend_state);
 
         renderCalls++;
         totalRenderCalls++;

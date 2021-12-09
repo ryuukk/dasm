@@ -10,7 +10,9 @@
 			"targetName": "game",
 			"targetPath": "../../bin",
 			"workingDirectory": "../../bin",
-			"versions": [ "GAME", "DESKTOP", "GL_30", "FT_211", "BindFT_Static"],
+			"versions": [ "GAME", "DESKTOP", "GL_30", "GLFW_33", "FT_211", "BindFT_Static"],
+            "buildOptions": [
+            ],
 			"libs-windows": [
 				"user32",
 				"gdi32",
@@ -31,7 +33,6 @@
 			"dflags": [
 				"-preview=rvaluerefparam",
 				"-preview=intpromote",
-				"-profile=gc"
 			],
 			"lflags-windows": [
 				"/NODEFAULTLIB:libcmt.lib"
@@ -45,7 +46,7 @@
 				"bindbc-opengl": "~>1.0.0",
 			},
 			"subConfigurations": {
-				"bindbc-opengl": "dynamicBC"
+				"bindbc-opengl": "dynamicBC",
 			},
 		},
 		{

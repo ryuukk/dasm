@@ -1,6 +1,7 @@
 module dawn.microui;
 
-version (DESKTOP):
+
+public import dawn.microui.atlas;
 
 import rt.memory;
 import rt.str;
@@ -23,24 +24,44 @@ enum REAL_FMT = "%.3g";
 enum SLIDER_FMT = "%.2f";
 enum MAX_FMT = 127;
 
+void swap(char *elem1, char *elem2, size_t w)
+{
+	int k = 0;
+	char temp;
+	for (k = 0; k < w; k++)
+	{
+		temp = *(elem1 + k);
+		*(elem1 + k) = *(elem2 + k);
+		*(elem2 + k) = temp;
+	}
+}
 
-alias cmp_cb = extern(C) int function(const(void*), const(void*));
-
-// TODO: implement for WASM
-extern(C) void qsort (
-  void* base,
-  ulong nmemb,
-  ulong size,
-  cmp_cb compare
-);
-extern(C) int sprintf (
-  scope char* s,
-  scope const(char*) format, ...
-);
-extern(C) double strtod (
-  scope inout(char)* nptr,
-  scope inout(char)** endptr
-);
+alias cmp_cb = int function(const(void*), const(void*));
+void qsort(void * base, size_t num, size_t width, cmp_cb cmp)
+{
+    if (num == 0) return;
+    
+	size_t i = 0;
+	size_t j = 0;
+	//int k = 0;
+	//char tmp = 0;
+	for (i = 0; i < num - 1; i++)
+	{
+		for (j = 0; j < (num - i - 1); j++)
+		{
+            if (cmp(cast(char*) base + j * width, cast(char*) base + (j + 1) * width) > 0)
+            {
+                //for (k = 0; k < width; k++)
+                //{
+                //	tmp = *((char*)base + k + j*width);
+                //	*((char*)base + k + j*width) = *((char*)base + k + (j + 1)*width);
+                //	*((char*)base + k + (j + 1)*width) = tmp;
+                //}
+                swap(cast(char*) base + j * width, cast(char*) base + (j + 1) * width, width);
+            }
+        }
+	}
+}
 
 T min(T)(T a, T b) { return a < b ? a : b; }
 T max(T)(T a, T b) { return a > b ? a : b; }
@@ -123,7 +144,6 @@ enum {
   KEY_LEFT         = (1 << 5),
   KEY_RIGHT        = (1 << 6),
 }
-
 
 alias Id = uint;
 alias Real = REAL;
@@ -292,10 +312,6 @@ void expect(bool x, string file = __FILE__, int line = __LINE__)
   }
 }
 
-
-
-
-
 __gshared Rect unclipped_rect = Rect(0, 0, 0x1000000, 0x1000000 );
 
 __gshared Style default_style = Style(
@@ -408,7 +424,7 @@ void begin(Context *ctx) {
 }
 
 
-extern(C) int compare_zindex(const void *a, const void *b) {
+int compare_zindex(const void *a, const void *b) {
   return (*cast(Container**) a).zindex - (*cast(Container**) b).zindex;
 }
 
@@ -1014,8 +1030,7 @@ int button_ex(Context *ctx, const char *label, int icon, int opt) {
   return res;
 }
 
-
-int checkbox(Context *ctx, const char *label, int *state) {
+int checkbox(Context *ctx, const char *label, bool *state) {
   int res = 0;
   Id id = get_id(ctx, &state, (state).sizeof);
   Rect r = layout_next(ctx);
@@ -1029,7 +1044,9 @@ int checkbox(Context *ctx, const char *label, int *state) {
   /* draw */
   draw_control_frame(ctx, id, box, COLOR_BASE, 0);
   if (*state) {
-    draw_icon(ctx, ICON_CHECK, box, ctx.style.colors[COLOR_TEXT]);
+    //draw_icon(ctx, ICON_CHECK, box, ctx.style.colors[COLOR_TEXT]);
+    // TODO: remove when atlas rendering bug is fixed
+    draw_rect(ctx, box, Color(230,20,20,255));
   }
   r = rect(r.x + box.w, r.y, r.w - box.w, r.h);
   draw_control_text(ctx, label, r, COLOR_TEXT, 0);
@@ -1044,7 +1061,7 @@ int textbox_raw(Context *ctx, char *buf, int bufsz, Id id, Rect r, int opt)
 
   if (ctx.focus == id) {
     /* handle text input */
-    int len = cast(int)str_len(buf);
+    int len = cast(int) str_len(buf);
     int n = min(bufsz - len - 1, cast(int) str_len(ctx.input_text.ptr));
     if (n > 0) {
       memcpy(buf + len, ctx.input_text.ptr, n);
@@ -1066,26 +1083,30 @@ int textbox_raw(Context *ctx, char *buf, int bufsz, Id id, Rect r, int opt)
     }
 
     if (ctx.key_pressed & KEY_LEFT) {
+
     }
   }
 
-  /* draw */
-  draw_control_frame(ctx, id, r, COLOR_BASE, opt);
-  if (ctx.focus == id) {
-    Color color = ctx.style.colors[COLOR_TEXT];
-    Font font = ctx.style.font;
-    int textw = ctx.text_width(font, buf, -1);
-    int texth = ctx.text_height(font);
-    int ofx = r.w - ctx.style.padding - textw - 1;
-    int textx = r.x + min(ofx, ctx.style.padding);
-    int texty = r.y + (r.h - texth) / 2;
-    push_clip_rect(ctx, r);
-    draw_text(ctx, font, buf, -1, vec2(textx, texty), color);
-    draw_rect(ctx, rect(textx + textw, texty, 1, texth), color);
-    pop_clip_rect(ctx);
-  } else {
-    draw_control_text(ctx, buf, r, COLOR_TEXT, opt);
-  }
+    /* draw */
+    draw_control_frame(ctx, id, r, COLOR_BASE, opt);
+    if (ctx.focus == id)
+    {
+        Color color = ctx.style.colors[COLOR_TEXT];
+        Font font = ctx.style.font;
+        int textw = ctx.text_width(font, buf, -1);
+        int texth = ctx.text_height(font);
+        int ofx = r.w - ctx.style.padding - textw - 1;
+        int textx = r.x + min(ofx, ctx.style.padding);
+        int texty = r.y + (r.h - texth) / 2;
+        push_clip_rect(ctx, r);
+        draw_text(ctx, font, buf, -1, vec2(textx, texty), color);
+        draw_rect(ctx, rect(textx + textw, texty, 1, texth), color);
+        pop_clip_rect(ctx);
+    }
+    else
+    {
+        draw_control_text(ctx, buf, r, COLOR_TEXT, opt);
+    }
 
   return res;
 }
@@ -1097,14 +1118,14 @@ static int number_textbox(Context *ctx, Real *value, Rect r, Id id) {
   ) {
     ctx.number_edit = id;
 
-    sprintf(ctx.number_edit_buf.ptr, REAL_FMT, *value);
+    float_to_str(ctx.number_edit_buf.ptr, *value, 2);
 
   }
   if (ctx.number_edit == id) {
     int res = textbox_raw(
       ctx, ctx.number_edit_buf.ptr, (ctx.number_edit_buf).sizeof, id, r, 0);
     if (res & RES_SUBMIT || ctx.focus != id) {
-      *value = strtod(ctx.number_edit_buf.ptr, null);
+      *value = string_to_float(ctx.number_edit_buf.ptr);
       ctx.number_edit = 0;
     } else {
       return 1;
@@ -1169,7 +1190,7 @@ int slider_ex(Context *ctx, Real *value, Real low, Real high,
   thumb = rect(base.x + x, base.y, w, base.h);
   draw_control_frame(ctx, id, thumb, COLOR_BUTTON, opt);
   /* draw text  */
-  sprintf(buf.ptr, fmt, v);
+  float_to_str(buf.ptr, v, 2);
   draw_control_text(ctx, buf.ptr, base, COLOR_TEXT, opt);
 
   return res;
@@ -1201,7 +1222,7 @@ int number_ex(Context *ctx, Real *value, Real step,
   /* draw base */
   draw_control_frame(ctx, id, base, COLOR_BASE, opt);
   /* draw text  */
-  sprintf(buf.ptr, fmt, *value);
+  float_to_str(buf.ptr, *value, 2);
   draw_control_text(ctx, buf.ptr, base, COLOR_TEXT, opt);
 
   return res;
@@ -1487,4 +1508,118 @@ void begin_panel_ex(Context *ctx, const char *name, int opt) {
 void end_panel(Context *ctx) {
   pop_clip_rect(ctx);
   pop_container(ctx);
+}
+
+
+
+
+// TEST WINDOW
+
+__gshared float[3] bg = [90, 95, 100];
+__gshared char[256] buffer = 0;
+
+void test_window(Context* ctx) 
+{
+  /* do window */
+  if (begin_window(ctx, "Demo Window", rect(40, 40, 300, 450))) {
+    Container *win = get_current_container(ctx);
+    win.rect.w = max(win.rect.w, 240);
+    win.rect.h = max(win.rect.h, 300);
+
+    /* window info */
+    if (header(ctx, "Window Info")) {
+      win = get_current_container(ctx);
+      char[64] buf;
+      layout_row(ctx, [54, -1], 0);
+      label(ctx,"Position:");
+      label(ctx, "Size:");
+
+    }
+
+    /* labels + buttons */
+    if (header_ex(ctx, "Test Buttons", OPT_EXPANDED)) {
+      layout_row(ctx, [90, -110, -1], 0);
+      label(ctx, "Test buttons 1:");
+      if (button(ctx, "Button 1")) { /* write_log("Pressed button 1"); */ }
+      if (button(ctx, "Button 2")) { /* write_log("Pressed button 2"); */ }
+      label(ctx, "Test buttons 2:");
+      if (button(ctx, "Button 3")) { /* write_log("Pressed button 3"); */ }
+      if (button(ctx, "Popup")) { open_popup(ctx, "Test Popup"); }
+      
+      
+      if (begin_popup(ctx, "Test Popup")) {
+        layout_row(ctx, [300], 0);
+        button(ctx, "Hello");
+        button(ctx, "World");
+        label(ctx, "Something a little long");
+        end_popup(ctx);
+      }
+    }
+
+    /* tree */
+    if (header_ex(ctx, "Tree and Text", OPT_EXPANDED)) {
+      layout_row(ctx, [140, -1 ], 0);
+      layout_begin_column(ctx);
+      if (begin_treenode(ctx, "Test 1")) {
+        if (begin_treenode(ctx, "Test 1a")) {
+          label(ctx, "Hello");
+          label(ctx, "world");
+          end_treenode(ctx);
+        }
+        if (begin_treenode(ctx, "Test 1b")) {
+          if (button(ctx, "Button 1")) { /*write_log("Pressed button 1");*/ }
+          if (button(ctx, "Button 2")) { /*write_log("Pressed button 2");*/ }
+          end_treenode(ctx);
+        }
+        end_treenode(ctx);
+      }
+      if (begin_treenode(ctx, "Test 2")) {
+        layout_row(ctx, [ 54, 54 ], 0);
+        if (button(ctx, "Button 3")) { /*write_log("Pressed button 3");*/ }
+        if (button(ctx, "Button 4")) { /*write_log("Pressed button 4");*/ }
+        if (button(ctx, "Button 5")) { /*write_log("Pressed button 5");*/ }
+        if (button(ctx, "Button 6")) { /*write_log("Pressed button 6");*/ }
+        end_treenode(ctx);
+      }
+      if (begin_treenode(ctx, "Test 3")) {
+        static bool[3] checks = [ true, false, true ];
+        checkbox(ctx, "Checkbox 1", &checks[0]);
+        checkbox(ctx, "Checkbox 2", &checks[1]);
+        checkbox(ctx, "Checkbox 3", &checks[2]);
+        end_treenode(ctx);
+      }
+      layout_end_column(ctx);
+
+      layout_begin_column(ctx);
+      layout_row(ctx, [-1], 0);
+      text(ctx, "Lorem ipsum dolor sit amet, consectetur adipiscing elit." ~
+      "Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus" ~
+      "ipsum, eu varius magna felis a nulla.");
+      layout_end_column(ctx);
+    }
+
+    /* background color sliders */
+    if (header_ex(ctx, "Background Color", OPT_EXPANDED)) {
+      layout_row(ctx, [-78, -1 ], 74);
+      /* sliders */
+      layout_begin_column(ctx);
+      layout_row(ctx, [ 46, -1 ], 0);
+      label(ctx, "Red:");   slider(ctx, &bg[0], 0, 255);
+      label(ctx, "Green:"); slider(ctx, &bg[1], 0, 255);
+      label(ctx, "Blue:");  slider(ctx, &bg[2], 0, 255);
+      layout_end_column(ctx);
+      /* color preview */
+      Rect r = layout_next(ctx);
+      draw_rect(ctx, r, color(cast(int) bg[0], cast(int) bg[1], cast(int) bg[2], 255));
+      char[32] buf;
+      draw_control_text(ctx, buf.ptr, r, COLOR_TEXT, OPT_ALIGNCENTER);
+    }
+
+    if(header_ex(ctx, "Text Stuff", OPT_EXPANDED))
+    {
+        textbox_ex(ctx, buffer.ptr, buffer.length, "hello");
+
+    }
+    end_window(ctx);
+  }
 }

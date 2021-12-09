@@ -196,7 +196,13 @@ struct PWriterImpl(bool LE)
 		return buffer[0 .. position];
 	}
 
-	void write_byte(ubyte data)
+	void write_ubyte(ubyte data)
+	{
+		buffer[position] = data;
+		position++;
+	}
+
+	void write_byte(byte data)
 	{
 		buffer[position] = data;
 		position++;
@@ -312,8 +318,8 @@ struct PWriterImpl(bool LE)
 
 	void write_bool(bool data)
 	{
-		if(data) write_byte(1);
-		if(!data) write_byte(0);
+		if(data) write_ubyte(1);
+		if(!data) write_ubyte(0);
 	}
 }
 

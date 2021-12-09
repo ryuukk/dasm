@@ -55,8 +55,9 @@ Texture* tex2;
 void splash_init(State* state)
 {
     LINFO("Splash: init");    
-    tex = renderer.cache.load!(Texture)("res/textures/uv_grid.png");
-    mdl = renderer.cache.load!(ModelAsset)("res/models/male.bin");
+    
+    tex = engine.cache.load!(Texture)("res/textures/uv_grid.png");
+    mdl = engine.cache.load!(ModelAsset)("res/models/male.bin");
 
     program.create(shader_v, shader_f);
     assert(program.is_compiled, "can't compile shader");
@@ -66,6 +67,8 @@ void splash_init(State* state)
 
 void splash_render(State* state, float dt)
 {
+    auto renderer = &engine.renderer;
+        
     if (engine.input.is_key_just_pressed(Key.KEY_A))
     {
     }
@@ -80,7 +83,7 @@ void splash_render(State* state, float dt)
 
 
     // render cube
-    renderer.state.set_depth_state(DepthState.Read);
+    renderer.state.set_depth_state(DepthState.Read, true);
     program.bind();
     program.set_uniform_mat4("u_mvp", &renderer.camera.combined);
     program.set_uniform_mat4("u_transform", &transform);
@@ -88,10 +91,13 @@ void splash_render(State* state, float dt)
     cube_mesh.render(&program, GL_TRIANGLES);
 
     // render texture when ready
+
+    renderer.state.set_depth_state(DepthState.None);
     renderer.spritebatch.begin();
     if (tex && tex.base.is_ready())
     {
         renderer.spritebatch.draw(&tex.tex, 0,0, 128, 128);
+        renderer.spritebatch.draw(&tex.tex, 32,32, 128, 128);
     }
     renderer.spritebatch.end(); 
 }

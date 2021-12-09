@@ -287,7 +287,7 @@ version(DESKTOP)
 {
 /// Returns 0 on success, else an error code. Assumes RGB order for color components
 /// in buf, if present.  Note: The file will remain even if the write fails.
-ubyte write_image(in char[] fname, int w, int h, in ubyte[] buf, int reqchans = 0)
+ubyte write_image(char[] fname, int w, int h, in ubyte[] buf, int reqchans = 0)
 {
     const int fmt = fname2fmt(fname);
     if (fmt == -1)
@@ -1108,8 +1108,14 @@ int findlast(in char[] s, in char c)
     return i;
 }
 
-int fname2fmt(in char[] fname)
+int fname2fmt(char[] fnamep)
 {
+    int l = 0;
+    while(fnamep[l] != '\0')
+        l++;
+    
+    auto fname = fnamep[0 .. l];
+
     int i = findlast(fname, '.');
     const int extlen = cast(int) fname.length - i - 1;  // exclude dot
     if (i < 0 || extlen < 3 || extlen > 4)

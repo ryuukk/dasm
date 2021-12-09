@@ -225,7 +225,7 @@ Texture2D create_texture(uint width, uint height, ubyte* ptr, PixelFormat format
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     if(format == PixelFormat.Alpha)
-        glTexImage2D(target, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, ptr);
+        glTexImage2D(target, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, ptr);
     else if (format == PixelFormat.Rgba)
         glTexImage2D(target, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
     else if (format == PixelFormat.Rgb)
