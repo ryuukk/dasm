@@ -14,6 +14,7 @@ import dawn.gl;
 import dawn.mesh;
 import dawn.camera;
 import dawn.assets;
+import dawn.font;
 
 
 const(char)[] shader_v = "#version 300 es
@@ -43,14 +44,17 @@ const(char)[] shader_f = "#version 300 es
         f_col = vec4(v_col, 1.0);
     }
 ";
+
 Allocator* allocator;
 ShaderProgram program;
 Mesh cube_mesh;
 mat4 transform = mat4.identity;
 float a = 0;
-Texture* tex;
 ModelAsset* mdl;
-Texture* tex2;
+FontAsset* fnt;
+Texture* tex;
+
+FontCache fc;
 
 void splash_init(State* state)
 {
@@ -58,11 +62,14 @@ void splash_init(State* state)
     
     tex = engine.cache.load!(Texture)("res/textures/uv_grid.png");
     mdl = engine.cache.load!(ModelAsset)("res/models/male.bin");
+    fnt = engine.cache.load!(FontAsset)("res/fonts/font.dat");
 
     program.create(shader_v, shader_f);
     assert(program.is_compiled, "can't compile shader");
 
     create_cube_mesh(&cube_mesh);
+
+    fc.create(null, false);
 }
 
 void splash_render(State* state, float dt)
@@ -100,4 +107,19 @@ void splash_render(State* state, float dt)
         renderer.spritebatch.draw(&tex.tex, 32,32, 128, 128);
     }
     renderer.spritebatch.end(); 
+
+
+    if (fnt.base.is_ready && !fc.font)
+    {
+        LINFO("set font!");
+        fc.font = &fnt.fnt;
+    }
+
+
+    fc.clear();
+    fc.add_text("Hello WASM! dsqdsqdqs", 8, 256);
+
+    renderer.spritebatch.begin();
+    fc.draw(&renderer.spritebatch);
+    renderer.spritebatch.end();
 }

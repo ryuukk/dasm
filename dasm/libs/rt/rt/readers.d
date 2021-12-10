@@ -27,7 +27,16 @@ struct PReaderImpl(bool LE)
 		return true;
 	}
 
-	ubyte read_byte()
+	ubyte read_ubyte()
+	{
+        assert (currentPos < _data.length);
+        
+		ubyte value = _data[currentPos];
+		currentPos++;
+		return value;
+	}
+
+	byte read_byte()
 	{
         assert (currentPos < _data.length);
         
@@ -161,7 +170,7 @@ struct PReaderImpl(bool LE)
 	bool read_bool()
 	{
 		bool value = true;
-		if (read_byte() == 0)
+		if (read_ubyte() == 0)
 			return false;
 		return value;
 	}

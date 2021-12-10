@@ -53,12 +53,10 @@ struct FontAtlas
 	float scale_y = 1.0;
 	bool enable_markup;
 
-
 	void destroy()
 	{
 		atlas.dispose();
 	}
-
 
 	GlyphInfo* get_glyph(char c) return
 	{
@@ -187,6 +185,8 @@ struct FontCache
 
 	void draw(SpriteBatch* batch)
 	{
+        if (!font) return;
+        
 		batch.draw(&font.atlas, vertices, 0, idx);
 	}
 
@@ -213,6 +213,8 @@ struct FontCache
 
 	Rectf add_text(string text, float x, float y, int start, int end)
 	{
+        if (!font) return Rectf(0,0,0,0);
+
 		require_sequence(text, start, end);
 
 		// if(x < bounds.x) bounds.x = x;

@@ -104,14 +104,14 @@ struct Model
 
     void load_meshes(ref PReader reader)
     {
-        auto mc = reader.read_byte();
+        auto mc = reader.read_ubyte();
         //ARRAY meshes.create(allocator, mc);
 
         for (int i = 0; i < mc; i++)
         {
             VertexAttributes attributes;
 
-            auto num_attributes = reader.read_byte();
+            auto num_attributes = reader.read_ubyte();
             for (int j = 0; j < num_attributes; j++)
             {
                 auto attribute = reader.read_cstring();
@@ -174,12 +174,12 @@ struct Model
 
             meshes.add(mesh);
 
-            auto num_parts = reader.read_byte();
+            auto num_parts = reader.read_ubyte();
             //ARRAY parts.create(allocator, num_parts);
             for (int k = 0; k < num_parts; k++)
             {
                 auto id = reader.read_cstring();
-                auto pt = reader.read_byte();
+                auto pt = reader.read_ubyte();
                 auto offset = reader.read_int();
                 auto size = reader.read_int();
                 
@@ -198,7 +198,7 @@ struct Model
 
     void load_materials(ref PReader reader)
     {
-        auto num_materials = reader.read_byte();
+        auto num_materials = reader.read_ubyte();
         //ARRAY materials.create(allocator, num_materials);
         for (int i = 0; i < num_materials; i++)
         {
@@ -207,7 +207,7 @@ struct Model
             Material material;
             memcpy(material.id, id, id.length + 1);
 
-            auto flags = reader.read_byte();
+            auto flags = reader.read_ubyte();
 
             if(flags & UsagColorFlag.fcDiffuse)
             {
@@ -251,7 +251,7 @@ struct Model
                 //printf("fcOpacity: %f\n", v);
             }
 
-            auto num_textures = reader.read_byte();
+            auto num_textures = reader.read_ubyte();
             for (int j = 0; j < num_textures; j++)
             {
                 auto tex_id = reader.read_cstring();
@@ -262,7 +262,7 @@ struct Model
 	            auto uv_s_x = reader.read_float();
 	            auto uv_s_y = reader.read_float();
 
-	            auto usage = reader.read_byte();
+	            auto usage = reader.read_ubyte();
 
                 // TODO: set material
                 //material.add(  )
@@ -285,7 +285,7 @@ struct Model
         node.scale = reader.read_vec3();
         node.translation = reader.read_vec3();
 
-        auto num_parts = reader.read_byte();
+        auto num_parts = reader.read_ubyte();
         for (int j = 0; j < num_parts; j++)
         {
             auto meshpart_id = reader.read_cstring();
@@ -305,7 +305,7 @@ struct Model
             }
         
             InvBoneBindInfo[MAX_BONES] invBoneBind = void;
-            auto num_bones = reader.read_byte();
+            auto num_bones = reader.read_ubyte();
             node_part.num_bones = num_bones;
             for (int k = 0; k < num_bones; k++)
             {
@@ -328,7 +328,7 @@ struct Model
                 invBoneBind[k] = bi;
             }
 
-            auto num_uv_mappin = reader.read_byte();
+            auto num_uv_mappin = reader.read_ubyte();
             for (int l = 0; l < num_uv_mappin; l++)
             {}
             
@@ -343,7 +343,7 @@ struct Model
             }
         }
 
-        auto num_children = reader.read_byte();
+        auto num_children = reader.read_ubyte();
         //ARRAY node.children.create(allocator);
         for (int k = 0; k < num_children; k++)
         {
@@ -359,7 +359,7 @@ struct Model
     {
 
 
-        auto num_nodes = reader.read_byte();
+        auto num_nodes = reader.read_ubyte();
         //ARRAY nodes.create(allocator, num_nodes);
 
         for (int i = 0; i < num_nodes; i++)
@@ -387,7 +387,7 @@ struct Model
 
     void load_animations(ref PReader reader)
     {
-        auto num_animations = reader.read_byte();
+        auto num_animations = reader.read_ubyte();
         //ARRAY animations.create(allocator, num_animations);
         for (int i = 0; i < num_animations; i++)
         {
@@ -396,7 +396,7 @@ struct Model
             Animation animation;
             memcpy(animation.id, anim_id, anim_id.length + 1);
 
-            auto num_node_anims = reader.read_byte();
+            auto num_node_anims = reader.read_ubyte();
             assert(num_node_anims > 0);
 
             animation.node_anims.create(allocator, num_node_anims);            
@@ -411,7 +411,7 @@ struct Model
 
                 if(!nodeAnim.node) panic("can't find node: %s", node_id.ptr);
 
-                auto num_kf_translations = reader.read_byte();
+                auto num_kf_translations = reader.read_ubyte();
                 if(num_kf_translations > 0)
                     nodeAnim.translation.create(allocator, num_kf_translations);
                 for (int k  = 0; k < num_kf_translations; k++)
@@ -426,7 +426,7 @@ struct Model
                     nodeAnim.translation.add(kf);
                 }
                 
-                auto num_kf_rotations = reader.read_byte();
+                auto num_kf_rotations = reader.read_ubyte();
                 if(num_kf_rotations > 0)
                     nodeAnim.rotation.create(allocator, num_kf_rotations);
                 for (int k  = 0; k < num_kf_rotations; k++)
@@ -441,7 +441,7 @@ struct Model
                     nodeAnim.rotation.add(kf);
                 }
                 
-                auto num_kf_scale = reader.read_byte();
+                auto num_kf_scale = reader.read_ubyte();
                 if(num_kf_scale > 0)
                     nodeAnim.scaling.create(allocator, num_kf_scale);
                 for (int k  = 0; k < num_kf_scale; k++)

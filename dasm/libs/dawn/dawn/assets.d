@@ -141,6 +141,42 @@ struct Resource
         async_op = FS.invalid_handle;
     }
 
+    void add_dependency(Resource* dependent_resource)
+    {
+        assert(desired_state != State.EMPTY);
+
+        dependent_resource.cb = &on_state_changed;
+        if (dependent_resource.is_empty()) ++empty_dep_count;
+        if (dependent_resource.is_failure()) {
+            ++failed_dep_count;
+        }
+        check_state();
+    }
+
+
+    void on_state_changed(State old_state, State new_state, Resource* rf)
+    {
+        assert(old_state != new_state);
+        assert(current_state != State.EMPTY || desired_state != State.EMPTY);
+
+        if (old_state == State.EMPTY)
+        {
+            assert(empty_dep_count > 0);
+            --empty_dep_count;
+        }
+        if (old_state == State.FAILURE)
+        {
+            assert(failed_dep_count > 0);
+            --failed_dep_count;
+        }
+
+        if (new_state == State.EMPTY) ++empty_dep_count;
+        if (new_state == State.FAILURE) ++failed_dep_count;
+
+        check_state();
+    }
+
+
     void check_state()
     {
         auto old_state = current_state;
@@ -270,8 +306,8 @@ struct ModelAsset
         PReader reader;
         reader._data = buffer[0 .. size];
 
-        ubyte h = reader.read_byte();
-        ubyte l = reader.read_byte();
+        ubyte h = reader.read_ubyte();
+        ubyte l = reader.read_ubyte();
         string id = reader.read_cstring();
 
         mdl = Model();
@@ -279,6 +315,98 @@ struct ModelAsset
         return true;
     }
 }
+
+
+struct FontAsset
+{
+    import dawn.font;
+    
+    Resource base;
+    FontAtlas fnt;
+    Texture* tex;
+
+    void create(char[256] path, ResourceCache* cache)
+    {
+        base.create(path, cache);
+        base.vt_load = &load;
+        base.vt_unload = &unload;
+        base.vt_on_before_ready = &before_ready;
+    }
+
+    void before_ready(Resource* res)
+    {
+        fnt.atlas = tex.tex;
+    }
+
+    void unload(Resource* res)
+    {
+        tex.base.decreate_ref_count();
+    }
+
+    bool load(uint size, const(ubyte)* buffer)
+    {
+        import rt.readers;
+        LINFO("font: {} size: {} bytes", base.path, size);
+
+        PReader reader;
+        reader._data = buffer[0 .. size];
+
+        // version
+        ubyte ver = reader.read_ubyte();
+        assert(ver == 1);
+
+        // info
+        fnt.line_height = reader.read_int();
+        fnt.ascent = reader.read_int();
+        fnt.descent = reader.read_int();
+        fnt.space_x_advance = reader.read_int();
+        fnt.down = reader.read_int();
+        fnt.x_height = reader.read_int();
+        fnt.cap_height = reader.read_int();
+
+        // glyps
+        int numG = reader.read_int();
+        for(int i = 0; i < numG; i++)
+        {
+            auto g = &fnt.glyphs[i];
+            g.id = reader.read_uint();
+            g.character =  cast(char) reader.read_int();
+            g.width = reader.read_ubyte();
+            g.height = reader.read_ubyte();
+            g.brearing_x = reader.read_byte();
+            g.brearing_y = reader.read_byte();
+            g.advance = reader.read_byte();
+            g.u = reader.read_float();
+            g.v = reader.read_float();
+            g.u2 = reader.read_float();
+            g.v2 = reader.read_float();
+
+            ubyte numK = reader.read_ubyte();
+            for (int j = 0; j < numK; j++)
+            {
+                auto c = reader.read_int();
+                auto v = reader.read_byte();
+                g.kerning_value[c] = v;
+            }
+        }
+
+        fnt.atlas_width = reader.read_int();
+        fnt.atlas_height = reader.read_int();
+        auto fntPathL = reader.read_int();
+        auto fntPathS = cast(char[])reader.read_slice(fntPathL);
+
+        // TODO: i really need to fix that mess of a path/str
+        char[256] fntPath = 0;
+        mem.memcpy(fntPath.ptr, fntPathS.ptr, fntPathL);
+        tex = base.cache.load!(Texture)(fntPath);
+
+        base.add_dependency(cast(Resource*)tex);
+
+        return true;
+    }
+}
+
+
 
 
 struct ResourceCache

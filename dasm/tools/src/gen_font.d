@@ -239,6 +239,12 @@ void export_font()
     writer.write_int(result_font.atlas_width);
     writer.write_int(result_font.atlas_height);
 
+    import rt.str;
+
+    int pl = str_len(out_tex_path.ptr);
+    writer.write_int(pl);
+    writer.write_bytes(cast(ubyte[]) out_tex_path[0 .. pl]);
+
 
     file.write(buffer.ptr, writer.position);
     file.flush();

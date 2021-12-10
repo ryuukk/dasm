@@ -268,7 +268,7 @@ void DBG_PRINT_PATH(string file, int line)
     version(WASM)
     {
         print_char('[');
-        print_str(fp);
+        print_str(fp.ptr);
         print_char(':');    
         print_int(line);
         print_char(']');
