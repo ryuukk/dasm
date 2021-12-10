@@ -153,6 +153,18 @@ struct Resource
         check_state();
     }
 
+    void remove_dependency(Resource* dependent_resource)
+    {
+        assert(desired_state != State.EMPTY);
+
+        dependent_resource.cb = null;
+        if (dependent_resource.is_empty()) ++empty_dep_count;
+        if (dependent_resource.is_failure()) {
+            ++failed_dep_count;
+        }
+
+        check_state();
+    }
 
     void on_state_changed(State old_state, State new_state, Resource* rf)
     {
@@ -175,7 +187,6 @@ struct Resource
 
         check_state();
     }
-
 
     void check_state()
     {
@@ -251,6 +262,12 @@ struct Texture
     {
         base.create(path, cache);
         base.vt_load = &load;
+        base.vt_unload = &unload;
+    }
+
+    void unload(Resource* res)
+    {
+        tex.dispose();
     }
 
     bool load(uint size, const(ubyte)* buffer)
@@ -340,6 +357,8 @@ struct FontAsset
 
     void unload(Resource* res)
     {
+        // TODO: i should test this
+        // it's a dependency
         tex.base.decreate_ref_count();
     }
 
@@ -429,7 +448,7 @@ struct ResourceCache
         Resource* resource = null;
         foreach(v; map)
         {
-            if (v.value.is_empty() == false && v.value.ref_count == 0)
+            if (v.value.is_empty() == true && v.value.ref_count == 0)
             {
                 idtoremove = v.key; 
                 resource = v.value; 
@@ -439,7 +458,7 @@ struct ResourceCache
         {
             LINFO("Remove: {}:{}", idtoremove, resource.path);
             map.erase(idtoremove);
-            resource.do_unload();
+            //resource.do_unload();
         }
 
         fs.process_callbacks();
@@ -539,3 +558,36 @@ uint murmum_hash_2(const(void)* key, int len, uint seed)
     return h;
 }
 
+
+
+
+version(NONE):
+unittest
+{
+    import rt.memory;
+    import rt.time;
+    import rt.thread;
+    Allocator* allocator = MALLOCATOR.ptr();
+    ResourceCache cache;
+    cache.create();
+
+    StopWatch sw;
+    sw.start();
+
+
+    struct AssetOne 
+    {
+        Resource base;
+    }
+
+    struct AssetTwo 
+    {
+        Resource base;
+    }
+
+    while (sw.elapsed.msecs < 10_000)
+    {
+        cache.process();
+        sleep_for(10);
+    }
+}

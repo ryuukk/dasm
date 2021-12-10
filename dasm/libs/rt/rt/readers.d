@@ -7,108 +7,108 @@ public alias PReader = PReaderImpl!(true);
 
 struct PReaderImpl(bool LE)
 {
-	const(ubyte)[] _data;
-	int currentPos;
+    const(ubyte)[] _data;
+    int currentPos;
 
-	this(ubyte[] data)
-	{
-		_data = data;
-		currentPos = 0;
-	}
+    this(ubyte[] data)
+    {
+        _data = data;
+        currentPos = 0;
+    }
 
-	void skip_all()
-	{
+    void skip_all()
+    {
         currentPos = cast(int)_data.length;
-	}
-	// todo: use that?
-	bool check(int amount)
-	{
-		if(_data.length < currentPos + amount) return false;
-		return true;
-	}
+    }
+    // todo: use that?
+    bool check(int amount)
+    {
+        if(_data.length < currentPos + amount) return false;
+        return true;
+    }
 
-	ubyte read_ubyte()
-	{
+    ubyte read_ubyte()
+    {
         assert (currentPos < _data.length);
         
-		ubyte value = _data[currentPos];
-		currentPos++;
-		return value;
-	}
+        ubyte value = _data[currentPos];
+        currentPos++;
+        return value;
+    }
 
-	byte read_byte()
-	{
+    byte read_byte()
+    {
         assert (currentPos < _data.length);
         
-		ubyte value = _data[currentPos];
-		currentPos++;
-		return value;
-	}
+        ubyte value = _data[currentPos];
+        currentPos++;
+        return value;
+    }
 
-	float read_float()
-	{
-		assert(_data.length >= this.currentPos + 4);
-		ubyte[4] data = _data[currentPos .. currentPos + 4];
-		currentPos += 4;
+    float read_float()
+    {
+        assert(_data.length >= this.currentPos + 4);
+        ubyte[4] data = _data[currentPos .. currentPos + 4];
+        currentPos += 4;
 
-		static if (LE)
-			return *cast(float*) data;
-		else
-		{
+        static if (LE)
+            return *cast(float*) data;
+        else
+        {
             not_implemented();
         }
-	}
+    }
 
-	int read_int()
-	{
-		ubyte[4] data = _data[currentPos .. currentPos + 4];
-		currentPos += 4;
-		static if (LE)
-			return *cast(int*) data;
-		else
+    int read_int()
+    {
+        ubyte[4] data = _data[currentPos .. currentPos + 4];
+        currentPos += 4;
+        static if (LE)
+            return *cast(int*) data;
+        else
             not_implemented();
-	}
+    }
 
-	uint read_uint()
-	{
-		scope ubyte[4] data = _data[currentPos .. currentPos + 4];
-		currentPos += 4;
-		static if (LE)
-			return *cast(uint*) data;
-		else
+    uint read_uint()
+    {
+        scope ubyte[4] data = _data[currentPos .. currentPos + 4];
+        currentPos += 4;
+        static if (LE)
+            return *cast(uint*) data;
+        else
             not_implemented();
-	}
+    }
 
-	short read_short()
-	{
-		scope ubyte[2] data = _data[currentPos .. currentPos + 2];
-		currentPos += 2;
+    short read_short()
+    {
+        scope ubyte[2] data = _data[currentPos .. currentPos + 2];
+        currentPos += 2;
 
-		static if (LE)
-			return *cast(short*) data;
-		else
+        static if (LE)
+            return *cast(short*) data;
+        else
             not_implemented();
-	}
+    }
 
-	ushort read_ushort()
-	{
-		scope ubyte[2] data = _data[currentPos .. currentPos + 2];
-		currentPos += 2;
-		static if (LE)
-			return *cast(ushort*) data;
-		else
+    ushort read_ushort()
+    {
+        scope ubyte[2] data = _data[currentPos .. currentPos + 2];
+        currentPos += 2;
+        static if (LE)
+            return *cast(ushort*) data;
+        else
             not_implemented();
-	}
+    }
 
-	double read_double()
-	{
-		scope ubyte[8] data = _data[currentPos .. currentPos + 8];
-		currentPos += 8;
-		static if (LE)
-			return *cast(double*) data;
-		else
+    double read_double()
+    {
+        scope ubyte[8] data = _data[currentPos .. currentPos + 8];
+        currentPos += 8;
+        static if (LE)
+            return *cast(double*) data;
+        else
             not_implemented();
-	}
+    }
 
 
     const(ubyte)[] read_slice(int size)
@@ -119,71 +119,71 @@ struct PReaderImpl(bool LE)
     }
 
     // no alloc
-	string read_string()
-	{
-		short l = read_short();
-		if(l == 0) return null;
+    string read_string()
+    {
+        short l = read_short();
+        if(l == 0) return null;
 
-		auto data = read_slice(cast(ushort) l);
-		return cast(string) cast(char[]) data;
-	}
+        auto data = read_slice(cast(ushort) l);
+        return cast(string) cast(char[]) data;
+    }
 
-	string read_cstring()
-	{
-		//debug_print(currentPos, currentPos + 15);
-		auto length = 0;
-		for(int i = currentPos; i < _data.length; i++)
-		{
-			if(_data[i] == 0) break;
-			length++;
-		}
-		auto data = read_slice(cast(ushort) length);
-		currentPos++;
-		return cast(string) cast(char[]) data;
-	}
+    string read_cstring()
+    {
+        //debug_print(currentPos, currentPos + 15);
+        auto length = 0;
+        for(int i = currentPos; i < _data.length; i++)
+        {
+            if(_data[i] == 0) break;
+            length++;
+        }
+        auto data = read_slice(cast(ushort) length);
+        currentPos++;
+        return cast(string) cast(char[]) data;
+    }
 
-	 void read_string_to(char[] str)
-	 {
-		auto s = read_string();
-		// TODO: what to do if we have bigger data than str?
-		for (int i = 0; i < str.length; i++)
-		{
-			if(i >= s.length) break;
-			str[i] = s[i];
-		}
-		if(s.length < str.length)
-			str[s.length] = 0;
-		else
-			str[$-1] = 0;
-	}
+     void read_string_to(char[] str)
+     {
+        auto s = read_string();
+        // TODO: what to do if we have bigger data than str?
+        for (int i = 0; i < str.length; i++)
+        {
+            if(i >= s.length) break;
+            str[i] = s[i];
+        }
+        if(s.length < str.length)
+            str[s.length] = 0;
+        else
+            str[$-1] = 0;
+    }
 
-	string read_utf32()
-	{
-		int l = read_int();
-		if(l == 0) return null;
-		
-		scope auto data = read_slice(cast(ushort) l);
-		return cast(string) cast(char[]) data;
-	}
+    string read_utf32()
+    {
+        int l = read_int();
+        if(l == 0) return null;
+        
+        scope auto data = read_slice(cast(ushort) l);
+        return cast(string) cast(char[]) data;
+    }
 
-	
-	bool read_bool()
-	{
-		bool value = true;
-		if (read_ubyte() == 0)
-			return false;
-		return value;
-	}
+    
+    bool read_bool()
+    {
+        bool value = true;
+        if (read_ubyte() == 0)
+            return false;
+        return value;
+    }
 
-	void seek(int pos)
-	{
-		currentPos = pos;
-	}
+    void seek(int pos)
+    {
+        currentPos = pos;
+    }
 
-	ushort bytes_available()
-	{
-		return cast(ushort)(this._data.length - currentPos);
-	}
+    ushort bytes_available()
+    {
+        return cast(ushort)(this._data.length - currentPos);
+    }
 }
 
 
@@ -191,145 +191,145 @@ public alias PWriter = PWriterImpl!(true);
 //public alias PWriterBE = PWriterImpl!(false);
 struct PWriterImpl(bool LE)
 {
-	ubyte[] buffer;
-	uint position;
+    ubyte[] buffer;
+    uint position;
 
-	this(ubyte[] buffer)
-	{
-		this.buffer = buffer;
-		position = 0;
-	}
+    this(ubyte[] buffer)
+    {
+        this.buffer = buffer;
+        position = 0;
+    }
 
-	ubyte[] get_range()
-	{
-		return buffer[0 .. position];
-	}
+    ubyte[] get_range()
+    {
+        return buffer[0 .. position];
+    }
 
-	void write_ubyte(ubyte data)
-	{
-		buffer[position] = data;
-		position++;
-	}
+    void write_ubyte(ubyte data)
+    {
+        buffer[position] = data;
+        position++;
+    }
 
-	void write_byte(byte data)
-	{
-		buffer[position] = data;
-		position++;
-	}
+    void write_byte(byte data)
+    {
+        buffer[position] = data;
+        position++;
+    }
 
-	void write_bytes(in ubyte[] data)
-	{
-		for (int i = 0; i < data.length; i++)
-		{
-			buffer[position + i] = data[i];
-		}
-		position += data.length;
-	}
+    void write_bytes(in ubyte[] data)
+    {
+        for (int i = 0; i < data.length; i++)
+        {
+            buffer[position + i] = data[i];
+        }
+        position += data.length;
+    }
 
-	void write_float(float data)
-	{
-		uint fd = *cast(uint*)&data;
+    void write_float(float data)
+    {
+        uint fd = *cast(uint*)&data;
         ubyte[4] value;
-		static if(LE)
-			value = (cast(ubyte*)&fd)[0 .. 4];
-		else
+        static if(LE)
+            value = (cast(ubyte*)&fd)[0 .. 4];
+        else
             not_implemented();
-		write_bytes(value);
-	}
+        write_bytes(value);
+    }
 
-	void write_int(int data)
-	 {
+    void write_int(int data)
+     {
         ubyte[4] value;
-		static if(LE)
-			value = (cast(ubyte*)&data)[0 .. 4];
-		else
+        static if(LE)
+            value = (cast(ubyte*)&data)[0 .. 4];
+        else
             not_implemented();
-		write_bytes(value);
-	}
+        write_bytes(value);
+    }
 
-	void write_uint(uint data)
-	 {
-		static if(LE)
-			ubyte[4] value = (cast(ubyte*)&data)[0 .. 4];
-		else
+    void write_uint(uint data)
+     {
+        static if(LE)
+            ubyte[4] value = (cast(ubyte*)&data)[0 .. 4];
+        else
             not_implemented();
-		write_bytes(value);
-	}
+        write_bytes(value);
+    }
 
-	void write_short(short data)
-	 {
+    void write_short(short data)
+     {
         ubyte[2] value;
-		static if(LE)
-			value = (cast(ubyte*)&data)[0 .. 2];
-		else
+        static if(LE)
+            value = (cast(ubyte*)&data)[0 .. 2];
+        else
             not_implemented();
-		write_bytes(value);
-	}
+        write_bytes(value);
+    }
 
-	void write_ushort(ushort data)
-	 {
+    void write_ushort(ushort data)
+     {
         ubyte[2] value;
-		static if(LE)
-		    value = (cast(ubyte*)&data)[0 .. 2];
-		else
+        static if(LE)
+            value = (cast(ubyte*)&data)[0 .. 2];
+        else
             not_implemented();
-		write_bytes(value);
-	}
+        write_bytes(value);
+    }
 
-	void write_double(double data)
-	{
+    void write_double(double data)
+    {
         ubyte[8] value;
-		static if(LE)
-			value = (cast(ubyte*)&data)[0 .. 8];
-		else
+        static if(LE)
+            value = (cast(ubyte*)&data)[0 .. 8];
+        else
             not_implemented();
-		write_bytes(value);
-	}
+        write_bytes(value);
+    }
 
-	void write_utf(in char[] data)
-	{
-		int size = cast(int)data.length;
-		ubyte[] string = cast(ubyte[])data;
-		write_int(size);
-		if(size > 0)
-			write_bytes(string);
-	}
-	void write_string(in char[] data)
-	{
-		short size = cast(short)data.length;
-		ubyte[] string = cast(ubyte[])data;
-		write_short(size);
-		if(size > 0)
-			write_bytes(string);
-	}
+    void write_utf(in char[] data)
+    {
+        int size = cast(int)data.length;
+        ubyte[] string = cast(ubyte[])data;
+        write_int(size);
+        if(size > 0)
+            write_bytes(string);
+    }
+    void write_string(in char[] data)
+    {
+        short size = cast(short)data.length;
+        ubyte[] string = cast(ubyte[])data;
+        write_short(size);
+        if(size > 0)
+            write_bytes(string);
+    }
 
-	void write_cstring(char[] data)
-	{
-		auto l = 0;
-		for(int i = 0; i < data.length; i++)
-		{
-			if(data[i] == 0) break;
-			l++;
-		}
-		assert(l < short.max);
+    void write_cstring(char[] data)
+    {
+        auto l = 0;
+        for(int i = 0; i < data.length; i++)
+        {
+            if(data[i] == 0) break;
+            l++;
+        }
+        assert(l < short.max);
 
-		write_short(cast(short) l);
+        write_short(cast(short) l);
 
-		if(l > 0)
-			write_bytes(cast(ubyte[]) data[0 .. l]);
-	}
+        if(l > 0)
+            write_bytes(cast(ubyte[]) data[0 .. l]);
+    }
 
-	void write_utf_bytes(in char[] data)
-	 {
-		ubyte[] str = cast(ubyte[])data;
-		write_bytes(str);
-	}
+    void write_utf_bytes(in char[] data)
+     {
+        ubyte[] str = cast(ubyte[])data;
+        write_bytes(str);
+    }
 
-	void write_bool(bool data)
-	{
-		if(data) write_ubyte(1);
-		if(!data) write_ubyte(0);
-	}
+    void write_bool(bool data)
+    {
+        if(data) write_ubyte(1);
+        if(!data) write_ubyte(0);
+    }
 }
 
 
