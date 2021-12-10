@@ -75,9 +75,7 @@ ulong frequency()
     }
     else
     {
-        // TODO: is that the right amount?
-        // ticks on wasm seems to return a very low value..
-        return 1_000_000_000;
+        return 1_000;
     }
 }
 
