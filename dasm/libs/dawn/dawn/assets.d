@@ -165,7 +165,6 @@ struct Resource
 
         check_state();
     }
-    
 
     void on_state_changed(State old_state, State new_state, Resource* rf)
     {
