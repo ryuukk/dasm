@@ -1,80 +1,80 @@
 {
-	"name": "game",
-	"targetType": "executable",
-	"sourcePaths": [ "src" ],
-	"importPaths": [ "src" ],
+    "name": "game",
+    "targetType": "executable",
+    "sourcePaths": [ "src" ],
+    "importPaths": [ "src" ],
 
-	"configurations": [
-		{
-			"name": "desktop",
-			"targetName": "game",
-			"targetPath": "../../bin",
-			"workingDirectory": "../../bin",
-			"versions": [ "GAME", "DESKTOP", "GL_30", "GLFW_33", "FT_211", "BindFT_Static"],
-            "buildOptions": [
+    "configurations": [
+        {
+            "name": "desktop",
+            "targetName": "game",
+            "targetPath": "../../bin",
+            "workingDirectory": "../../bin",
+            "mainSourceFile": "src/app.d",
+            "versions": [ "GAME", "DESKTOP", "GL_30", "GLFW_33", "FT_211", "BindFT_Static"],
+            "libs-windows": [
+                "user32",
+                "gdi32",
+                "shell32",
+                "ws2_32",
+                "Winmm",
             ],
-			"libs-windows": [
-				"user32",
-				"gdi32",
-				"shell32",
-				"ws2_32",
-				"Winmm",
-			],
-			"libs-linux": [
-				"glfw",
-				"freetype",
-			],
-			"sourceFiles-windows": [
-				"../libs/glfw/glfw3.lib",
-				"../libs/freetype/freetype.lib",
-			],
-			"sourceFiles-linux": [
-			],
-			"dflags": [
-				"-preview=rvaluerefparam",
-				"-preview=intpromote",
-			],
-			"lflags-windows": [
-				"/NODEFAULTLIB:libcmt.lib"
-			],
-			"dependencies": {
+            "libs-linux": [
+                "glfw",
+                "freetype",
+            ],
+            "sourceFiles-windows": [
+                "../libs/glfw/glfw3.lib",
+                "../libs/freetype/freetype.lib",
+            ],
+            "sourceFiles-linux": [
+            ],
+            "dflags": [
+                "-preview=rvaluerefparam",
+                "-preview=intpromote",
+            ],
+            "lflags-windows": [
+                "/NODEFAULTLIB:libcmt.lib"
+            ],
+            "dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
-				"dawn": { "path": "../libs/dawn", "version": "*" },
-				"glfw": { "path": "../libs/glfw", "version": "*" },
-				"freetype": { "path": "../libs/freetype", "version": "*" },
+                "dawn": { "path": "../libs/dawn", "version": "*" },
+                "glfw": { "path": "../libs/glfw", "version": "*" },
+                "freetype": { "path": "../libs/freetype", "version": "*" },
 
-				"bindbc-opengl": "~>1.0.0",
-			},
-			"subConfigurations": {
-				"bindbc-opengl": "dynamicBC",
-			},
-		},
-		{
-			"name": "wasm",
-			"targetName": "game",
-			"dflags-ldc": [
-				"--fvisibility=hidden",
-				"-linkonce-templates",
-				"-preview=intpromote",
-				"-preview=rvaluerefparam",
-			],
-			"lflags-ldc": [
+                "bindbc-opengl": "~>1.0.0",
+            },
+            "subConfigurations": {
+                "bindbc-opengl": "dynamicBC",
+            },
+        },
+        {
+            "name": "wasm",
+            "targetName": "game",
+            "mainSourceFile": "src/app.d",
+            "dflags-ldc": [
+                "--fvisibility=hidden",
+                "-linkonce-templates",
+                "-preview=intpromote",
+                "-preview=rvaluerefparam",
+            ],
+            "lflags-ldc": [
                 "-z","stack-size=1048576",
                 "--stack-first",
 
-				"-allow-undefined"
-			],
-			"sourceFiles": [
-				"../libs/zlib/build/zlib.a"
-			],
-			"targetPath": "../../bin",
-			"versions": [ "GAME", "WASM"],
+                "-allow-undefined"
+            ],
+            "sourceFiles": [
+                "../libs/zlib/build/zlib.a"
+            ],
+            "targetPath": "../../bin",
+            "versions": [ "GAME", "WASM"],
 
-			"dependencies": {
+            "dependencies": {
                 "rt": { "path": "../libs/rt", "version": "*" },
-				"wasm": { "path": "../libs/wasm", "version": "*" },
-				"dawn": { "path": "../libs/dawn", "version": "*" },
-			}
-		}
-	]
+                "wasm": { "path": "../libs/wasm", "version": "*" },
+                "dawn": { "path": "../libs/dawn", "version": "*" },
+            }
+        }
+    ]
 }

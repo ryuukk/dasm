@@ -1188,6 +1188,8 @@ struct NTString {
     }
 }
 
+
+version(NONE):
 unittest {
     string png_path = "tests/pngsuite/";
     string tga_path = "tests/pngsuite-tga/";

@@ -1054,6 +1054,8 @@ int checkbox(Context *ctx, const char *label, bool *state) {
 }
 
 
+int index;
+
 int textbox_raw(Context *ctx, char *buf, int bufsz, Id id, Rect r, int opt)
 {
   int res = 0;
@@ -1099,8 +1101,13 @@ int textbox_raw(Context *ctx, char *buf, int bufsz, Id id, Rect r, int opt)
         int textx = r.x + min(ofx, ctx.style.padding);
         int texty = r.y + (r.h - texth) / 2;
         push_clip_rect(ctx, r);
+
+        // text
         draw_text(ctx, font, buf, -1, vec2(textx, texty), color);
+        
+        // cursor
         draw_rect(ctx, rect(textx + textw, texty, 1, texth), color);
+        
         pop_clip_rect(ctx);
     }
     else

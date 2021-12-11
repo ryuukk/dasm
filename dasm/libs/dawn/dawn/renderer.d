@@ -24,7 +24,7 @@ struct Renderer
     FontCache font_cache;
 
     Camera camera;
-    Registry registry;
+    // Registry registry;
     SpriteBatch spritebatch;
     EntityRenderer entity_renderer;
 
@@ -43,9 +43,9 @@ struct Renderer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        state.set_blend_state(BlendState.AlphaBlend);
-        state.set_depth_state(DepthState.Default);
-        state.set_polygon_state(PolygonState.None);
+        state.set_blend_state(BlendState.AlphaBlend, true);
+        state.set_depth_state(DepthState.Default, true);
+        state.set_polygon_state(PolygonState.CullCCW, true);
 
 
         camera = Camera.init_perspective(60, engine.width, engine.height);
@@ -58,7 +58,7 @@ struct Renderer
         camera.look_at(0, 0, 0);
         camera.update();
 
-        registry.create(allocator);
+        // registry.create(allocator);
 
         spritebatch.create(engine);
 
@@ -748,7 +748,7 @@ struct PolygonState
     uint cull_face = GL_BACK;
     uint front_face = GL_CCW;
 
-    void apply(ref const PolygonState current) const
+    void apply(ref PolygonState current, bool force = false)
     {
         if (cullface)
         {
@@ -759,8 +759,6 @@ struct PolygonState
         else
         {
             glDisable(GL_CULL_FACE);
-            glFrontFace(front_face);
-            glCullFace(cull_face);
         }
     }
 
@@ -780,6 +778,18 @@ struct PolygonState
     enum PolygonState None = 
     {
         cullface: false,
+    };
+    
+    enum PolygonState CullCW = 
+    {
+        cullface: true,
+        front_face: GL_CW
+    };
+    
+    enum PolygonState CullCCW = 
+    {
+        cullface: true,
+        front_face: GL_CCW
     };
 }
 
@@ -812,9 +822,10 @@ struct RenderState
         depth_state = ds;
     }
 
-    void set_polygon_state(ref const PolygonState ps) const
+    void set_polygon_state(ref PolygonState ps, bool force = false)
     {
-        ps.apply(poly_state);
+        ps.apply(poly_state, force);
+        poly_state = ps;
     }
 
     void set_vertex_buffer(uint handle)

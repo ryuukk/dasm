@@ -369,7 +369,7 @@ FontAtlas load(FontConfig config)
         info.brearing_y = cast(byte)( face.glyph.bitmap_top + config.outline_size );
 
         info.u = penx * invTexWidth;
-        info.v = peny * invTexWidth;
+        info.v = peny * invTexHeight;
         info.u2 = (penx + info.width) * invTexWidth;
         info.v2 = (peny + info.height) * invTexHeight;
 

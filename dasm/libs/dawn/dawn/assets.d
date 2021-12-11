@@ -251,7 +251,7 @@ struct Resource
     }
 }
 
-struct Texture
+struct TextureAsset
 {
     import dawn.texture;
     
@@ -333,14 +333,14 @@ struct ModelAsset
     }
 }
 
-
 struct FontAsset
 {
     import dawn.font;
     
     Resource base;
     FontAtlas fnt;
-    Texture* tex;
+    TextureAsset* tex;
+    ubyte[128000] tmp;
 
     void create(char[256] path, ResourceCache* cache)
     {
@@ -417,16 +417,13 @@ struct FontAsset
         // TODO: i really need to fix that mess of a path/str
         char[256] fntPath = 0;
         mem.memcpy(fntPath.ptr, fntPathS.ptr, fntPathL);
-        tex = base.cache.load!(Texture)(fntPath);
+        tex = base.cache.load!(TextureAsset)(fntPath);
 
         base.add_dependency(cast(Resource*)tex);
 
         return true;
     }
 }
-
-
-
 
 struct ResourceCache
 {
@@ -456,8 +453,11 @@ struct ResourceCache
         }
         if (idtoremove > 0)
         {
+            assert(resource);
+
             LINFO("Remove: {}:{}", idtoremove, resource.path);
             map.erase(idtoremove);
+            allocator.free(resource);
             //resource.do_unload();
         }
 

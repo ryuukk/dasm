@@ -334,3 +334,15 @@ else
         printf("%lld", value);
     }
 }
+
+
+float benchmark(const(char)[] tag, scope void delegate() f)
+{
+    import rt.time: StopWatch;
+    StopWatch sw;
+    sw.start();
+    f();
+    auto ms = sw.elapsed.msecs;
+    LINFO("Function: {} took: {} msecs", tag, ms);
+    return ms;
+}

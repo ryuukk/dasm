@@ -52,7 +52,7 @@ mat4 transform = mat4.identity;
 float a = 0;
 ModelAsset* mdl;
 FontAsset* fnt;
-Texture* tex;
+TextureAsset* tex;
 
 FontCache fc;
 
@@ -60,10 +60,10 @@ void splash_init(State* state)
 {
     LINFO("Splash: init");    
     
-    tex = engine.cache.load!(Texture)("res/textures/uv_grid.png");
+    tex = engine.cache.load!(TextureAsset)("res/textures/uv_grid.png");
     mdl = engine.cache.load!(ModelAsset)("res/models/male.bin");
     fnt = engine.cache.load!(FontAsset)("res/fonts/font.dat");
-
+    
     program.create(shader_v, shader_f);
     assert(program.is_compiled, "can't compile shader");
 
@@ -78,16 +78,17 @@ void splash_render(State* state, float dt)
         
     if (engine.input.is_key_just_pressed(Key.KEY_A))
     {
-    }
-    if (engine.input.is_key_just_pressed(Key.KEY_SPACE))
-    {
+        LINFO("List cached resources:");
+        foreach(pair; engine.cache.map)
+        {
+            LINFO("p: {} rc: {} {}", pair.value.path, pair.value.ref_count, pair.value.is_empty());
+        }
     }
 
     a += 5 * dt;
     transform = mat4.set(v3(0, 0, 0), quat.fromAxis(0, 1, 0, a), v3(1, 1, 1));
 
     renderer.camera.update();
-
 
     // render cube
     renderer.state.set_depth_state(DepthState.Read, true);
@@ -104,7 +105,20 @@ void splash_render(State* state, float dt)
     if (tex && tex.base.is_ready())
     {
         renderer.spritebatch.draw(&tex.tex, 0,0, 128, 128);
-        renderer.spritebatch.draw(&tex.tex, 32,32, 128, 128);
+        renderer.spritebatch.draw(&tex.tex, 128,128, 128, 128);
+
+        // void draw (Texture2D* texture,
+        // Rectf region, float x, float y,
+        // float originX, float originY, float width, float height,
+		// float scaleX, float scaleY, float rotation) 
+
+        renderer.spritebatch.draw(&tex.tex, 
+            Rectf(0, 0, tex.tex.width, tex.tex.height),
+            256,256,
+            0,0,
+            128,128,
+            1, 1, a
+        );
     }
     renderer.spritebatch.end(); 
 
@@ -117,7 +131,14 @@ void splash_render(State* state, float dt)
 
 
     fc.clear();
-    fc.add_text("Hello WASM! dsqdsqdqs", 8, 256);
+
+    char[256] tmp = 0;
+    import rt.str;
+
+    float_to_str(tmp.ptr, now.seconds, 2);
+    
+    fc.add_text("Hello WASM! dsqdsqdqs", 8, engine.height);
+    fc.add_text(tmp, 8, engine.height - 32);
 
     renderer.spritebatch.begin();
     fc.draw(&renderer.spritebatch);

@@ -422,29 +422,29 @@ struct FontCache
         int cur = idx;
         idx += 20;
 
-        vertices[cur++] = x;
-        vertices[cur++] = y;
-        vertices[cur++] = color;
-        vertices[cur++] = u;
-        vertices[cur++] = v;
+        vertices[cur + 0] = x;
+        vertices[cur + 1] = y;
+        vertices[cur + 2] = color;
+        vertices[cur + 3] = u;
+        vertices[cur + 4] = v;
 
-        vertices[cur++] = x;
-        vertices[cur++] = y2;
-        vertices[cur++] = color;
-        vertices[cur++] = u;
-        vertices[cur++] = v2;
+        vertices[cur + 5] = x2;
+        vertices[cur + 6] = y;
+        vertices[cur + 7] = color;
+        vertices[cur + 8] = u2;
+        vertices[cur + 9] = v;
 
-        vertices[cur++] = x2;
-        vertices[cur++] = y2;
-        vertices[cur++] = color;
-        vertices[cur++] = u2;
-        vertices[cur++] = v2;
+        vertices[cur + 10] = x2;
+        vertices[cur + 11] = y2;
+        vertices[cur + 12] = color;
+        vertices[cur + 13] = u2;
+        vertices[cur + 14] = v2;
 
-        vertices[cur++] = x2;
-        vertices[cur++] = y;
-        vertices[cur++] = color;
-        vertices[cur++] = u2;
-        vertices[cur] = v;
+        vertices[cur + 15] = x;
+        vertices[cur + 16] = y2;
+        vertices[cur + 17] = color;
+        vertices[cur + 18] = u;
+        vertices[cur + 19] = v2;
 
         chars_count++;
     }

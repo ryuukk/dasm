@@ -67,7 +67,7 @@ struct SpriteBatch
         int j = 0;
         for (int i = 0; i < len; i += 6, j += 4)
         {
-            indices[i] = j;
+            indices[i + 0] = j;
             indices[i + 1] = (j + 1);
             indices[i + 2] = (j + 2);
             indices[i + 3] = (j + 2);
@@ -208,8 +208,8 @@ struct SpriteBatch
         else if (_idx == _vertices.length) //
             flush();
 
-        float fx2 = x + width;
-        float fy2 = y + height;
+        float x2 = x + width;
+        float y2 = y + height;
         float u = 0;
         float v = 1;
         float u2 = 1;
@@ -225,36 +225,53 @@ struct SpriteBatch
 
         float fint = color.to_float_bits();
 
+
+        /+ 
+            0           1
+
+
+
+                        3
+
+
+
+        +/
+
+
         int idx = _idx;
-        _vertices[idx] = x;
+        _vertices[idx + 0] = x;
         _vertices[idx + 1] = y;
         _vertices[idx + 2] = fint;
         _vertices[idx + 3] = u;
         _vertices[idx + 4] = v;
 
-        _vertices[idx + 5] = x;
-        _vertices[idx + 6] = fy2;
+        _vertices[idx + 5] = x2;
+        _vertices[idx + 6] = y;
         _vertices[idx + 7] = fint;
-        _vertices[idx + 8] = u;
-        _vertices[idx + 9] = v2;
+        _vertices[idx + 8] = u2;
+        _vertices[idx + 9] = v;
 
-        _vertices[idx + 10] = fx2;
-        _vertices[idx + 11] = fy2;
+        _vertices[idx + 10] = x2;
+        _vertices[idx + 11] = y2;
         _vertices[idx + 12] = fint;
         _vertices[idx + 13] = u2;
         _vertices[idx + 14] = v2;
 
-        _vertices[idx + 15] = fx2;
-        _vertices[idx + 16] = y;
+        _vertices[idx + 15] = x;
+        _vertices[idx + 16] = y2;
         _vertices[idx + 17] = fint;
-        _vertices[idx + 18] = u2;
-        _vertices[idx + 19] = v;
+        _vertices[idx + 18] = u;
+        _vertices[idx + 19] = v2;
 
         _idx = idx + 20;
     }
 
-	void draw (Texture2D* texture, Rectf region, float x, float y, float originX, float originY, float width, float height,
-		float scaleX, float scaleY, float rotation) 
+	void draw (Texture2D* texture,
+        ref Rectf region,
+        float x, float y,
+        float originX, float originY,
+        float width, float height,
+	    float scaleX, float scaleY, float rotation) 
     {
         if (texture.gl_handle != _lastTextureHandle) {
 			switch_tex(texture);
@@ -297,6 +314,7 @@ struct SpriteBatch
 
 		// rotate
 		if (rotation != 0) {
+            rotation = -rotation;
 			float cos = cosf(rotation);
 			float sin = sinf(rotation);
 
@@ -339,23 +357,23 @@ struct SpriteBatch
         float invTexHeight = 1.0f / texture.height;
 
 		float u = region.x * invTexWidth;
-		float v = region.y * invTexHeight;
+		float v = (region.y + region.height) * invTexHeight;
 		float u2 = (region.x + region.width) * invTexWidth;
-		float v2 = (region.y + region.height) * invTexHeight;
+		float v2 = region.y * invTexHeight;
 
         float color = this.color.to_float_bits();
 		int idx = _idx;
-		_vertices[idx] = x1;
+        _vertices[idx + 0] = x1;
 		_vertices[idx + 1] = y1;
 		_vertices[idx + 2] = color;
 		_vertices[idx + 3] = u;
 		_vertices[idx + 4] = v;
 
-		_vertices[idx + 5] = x2;
-		_vertices[idx + 6] = y2;
+		_vertices[idx + 5] = x4;
+		_vertices[idx + 6] = y4;
 		_vertices[idx + 7] = color;
-		_vertices[idx + 8] = u;
-		_vertices[idx + 9] = v2;
+		_vertices[idx + 8] = u2;
+		_vertices[idx + 9] = v;
 
 		_vertices[idx + 10] = x3;
 		_vertices[idx + 11] = y3;
@@ -363,11 +381,11 @@ struct SpriteBatch
 		_vertices[idx + 13] = u2;
 		_vertices[idx + 14] = v2;
 
-		_vertices[idx + 15] = x4;
-		_vertices[idx + 16] = y4;
+		_vertices[idx + 15] = x2;
+		_vertices[idx + 16] = y2;
 		_vertices[idx + 17] = color;
-		_vertices[idx + 18] = u2;
-		_vertices[idx + 19] = v;
+		_vertices[idx + 18] = u;
+		_vertices[idx + 19] = v2;
 		_idx = idx + 20;
     }
 

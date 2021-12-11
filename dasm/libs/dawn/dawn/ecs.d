@@ -1,5 +1,6 @@
 module dawn.ecs;
 
+version(NONE):
 
 import rt.dbg;
 import rt.memory;
@@ -14,7 +15,6 @@ import rt.collections.set;
 // TODO: create a traits definition and put all that, so i can costumize things
 // --- DO NOT EDIT
 alias entity_t = uint;
-alias Entity = entity_t;
 alias Index = uint;
 alias Version = uint;
 
@@ -23,7 +23,7 @@ enum invalid_id = entity_mask;// IndexType.max;
 
 enum entity_mask = 0xFFFFFFFF;
 enum version_mask = 0xFFFFFFFF;
-enum entity_shift = 16u;
+enum uint entity_shift = 32u;
 // ---
 
 alias Storage(T) = ComponentStorage!(T, entity_t);
@@ -153,8 +153,11 @@ Version extract_version(entity_t handle)
 {
     // TODO: cast should be fine, but double check if errors occurs
     auto mask = cast(entity_t)(version_mask) << entity_shift;
-    return cast(Version) ( (handle & mask) >> entity_shift );
+    auto ret = cast(Version) ( (handle & mask) >> entity_shift );
+
+    writeln("extract version: {} {} {}", handle, mask, ret);
     //return cast(Version)(handle >> entity_shift);
+    return ret;
 }
 
 entity_t forge(Index id, Version versionn)
@@ -162,7 +165,10 @@ entity_t forge(Index id, Version versionn)
     // HandleType, IndexType, VersionType
     //      ulong,      uint,        uint
     //return id | cast(entity_t)(versionn) << entity_shift;
-    return (id & entity_mask) | (cast(entity_t)(versionn) << entity_shift);
+
+    auto ret = (id & entity_mask) | (cast(entity_t)(versionn) << entity_shift);
+    writeln("forge: {} {} {}", id, versionn, ret);
+    return ret;
 }
 
 struct TypeStore
@@ -239,25 +245,9 @@ struct RegistryImpl(EntityType, IndexType, VersionType)
     bool valid(entity_t entity)
     {
         auto id = extract_id(entity);
+
+        writeln("valid: {} {} {}", entity, id, append_cursor);
         return id < append_cursor && entities[id] == entity;
-    }
-
-    entity_t generate_id()
-    {
-        //ENTT_ASSERT(static_cast<typename traits_type::entity_type>(entities.size()) < traits_type::entity_mask);
-        // auto e = entity_type{static_cast<typename traits_type::entity_type>(entities.size())};
-        //return entities.emplace_back(e);
-        
-        return 0; 
-    }
-
-    entity_t recycle_id()
-    {
-        return 0;
-    }
-
-    void release_entity(entity_t entity, Version v)
-    {
     }
 
     entity_t create_entity()
@@ -281,6 +271,8 @@ struct RegistryImpl(EntityType, IndexType, VersionType)
             auto handle = forge(append_cursor, 0);
             entities[id] = handle;
 
+
+            writeln("append cursor");
             append_cursor += 1;
             
             //printf("\tnew handle: %llu\n", handle);
@@ -673,18 +665,32 @@ struct OwningGroup
 
 template type_id(alias type)
 {
-    enum ulong type_id = hashStringFnv(__traits(identifier, type));
+    enum uint type_id = hashStringFnv32(__traits(identifier, type));
 
-    ulong hashStringFnv(string str)
+    ulong hashStringFnv64(string str)
     {
+        enum ulong FNV_64_INIT = 0xcbf29ce484222325UL;
         enum ulong FNV_64_PRIME = 0x100000001b3UL;
-        ulong value;
-        foreach (c; str)
-        {
-            value *= FNV_64_PRIME;
-            value ^= c;
+        ulong rv = FNV_64_INIT;
+        const len = str.length;
+        for(int i = 0; i < len; i++) {
+            rv ^= str[i];
+            rv *= FNV_64_PRIME;
         }
-        return value;
+        return rv;
+    }
+
+    uint hashStringFnv32(string str)
+    {
+        enum uint FNV_32_INIT = 0x811c9dc5;
+        enum uint FNV_32_PRIME = 0x01000193;
+        uint rv = FNV_32_INIT;
+        const len = str.length;
+        for(int i = 0; i < len; i++) {
+            rv ^= str[i];
+            rv *= FNV_32_PRIME;
+        }
+        return rv;
     }
 }
 template type_name(alias type)
@@ -806,7 +812,9 @@ unittest
 
     //while(true)
     {
-        import dawn.thread;
+        import rt.thread;
+        import core.stdc.stdlib: rand, RAND_MAX;
+        import core.stdc.stdio: printf;
 
         benchmark("ecs_stress", {
 
