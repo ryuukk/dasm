@@ -113,7 +113,7 @@
                     if (name.indexOf(']', name.length-1) !== -1)
                     {
                         var ls = name.lastIndexOf('[');
-                        name = name.subarray(0, ls);
+                        name = name.slice(0, ls);
                     }
         
                     // Optimize memory usage slightly: If we have an array of uniforms, e.g. 'vec3 colors[3];', then
@@ -210,6 +210,36 @@
                 GLprograms[id] = program;
                 return id;
             };
+            imports.glDeleteShader = function(id)
+            {
+                if (!id) return;
+                var shader = GLshaders[id];
+                if (!shader)
+                {
+                    // glDeleteShader actually signals an error when deleting a nonexisting object, unlike some other GL delete functions.
+                    GLrecordError(0x0501); // GL_INVALID_VALUE
+                    return;
+                }
+                MOD.WGL.deleteShader(shader);
+                GLshaders[id] = null;
+            };
+
+            imports.glDeleteProgram = function(id)
+            {
+                if (!id) return;
+                var program = GLprograms[id];
+                if (!program) 
+                {
+                    // glDeleteProgram actually signals an error when deleting a nonexisting object, unlike some other GL delete functions.
+                    GLrecordError(0x0501); // GL_INVALID_VALUE
+                    return;
+                }
+                MOD.WGL.deleteProgram(program);
+                program.name = 0;
+                GLprograms[id] = null;
+                GLprogramInfos[id] = null;
+            };
+
             imports.glGetAttribLocation = function (program, name) {
                 program = GLprograms[program];
                 name = ReadHeapString(name);
@@ -225,13 +255,13 @@
                 {
                     // If user passed an array accessor "[index]", parse the array index off the accessor.
                     var ls = name.lastIndexOf('[');
-                    var arrayIndex = name.subarray(ls+1, -1);
+                    var arrayIndex = name.slice(ls+1, -1);
                     if (arrayIndex.length > 0)
                     {
                         arrayOffset = parseInt(arrayIndex);
                         if (arrayOffset < 0) return -1;
                     }
-                    name = name.subarray(0, ls);
+                    name = name.slice(0, ls);
                 }
 
                 var ptable = GLprogramInfos[program];
@@ -534,7 +564,7 @@
                 else if (length) MOD.HEAP32[((length)>>2)] = 0;
             };
             
-	        imports.glDrawElements = function(mode, count, type, indices) { MOD.WGL.drawElements(mode, count, type, indices); };
+            imports.glDrawElements = function(mode, count, type, indices) { MOD.WGL.drawElements(mode, count, type, indices); };
 
 
 
@@ -555,7 +585,7 @@
             };
 
             
-	        imports.glActiveTexture = function(x0) { MOD.WGL.activeTexture(x0); };
+            imports.glActiveTexture = function(x0) { MOD.WGL.activeTexture(x0); };
             imports.glDeleteTextures = function(n, textures)
             {
                 for (var i = 0; i < n; i++)
@@ -608,7 +638,7 @@
                 MOD.WGL.texParameteri(x0, x1, x2);
             };
         
-	        imports.glBindFramebuffer = function(target, framebuffer) { MOD.WGL.bindFramebuffer(target, framebuffer ? GLframebuffers[framebuffer] : null); };
+            imports.glBindFramebuffer = function(target, framebuffer) { MOD.WGL.bindFramebuffer(target, framebuffer ? GLframebuffers[framebuffer] : null); };
             imports.glBindTexture = function(target, texture) { MOD.WGL.bindTexture(target, texture ? GLtextures[texture] : null); };
             imports.glDepthMask = function(flag) { MOD.WGL.depthMask(!!flag); };
 
@@ -708,6 +738,10 @@
             
             imports.roundf = (value) => {
                 return Math.round(value);
+            };
+            
+            imports.logf = (value) => {
+                return Math.log(value);
             };
 
             imports.fmodf = (y, x) => {
