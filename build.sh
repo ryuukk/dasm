@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-BUILD=true
+BUILD=release
 OPT=true
 OUTPUT=bin/game.wasm # for opt build
 
