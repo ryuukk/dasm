@@ -12,8 +12,9 @@
                 var repeat = status && keys[keycode];
                 keys[keycode] = status;
 
-                if (status == PRESS_RPT && !repeat) {
-                    MOD.WA.exports.on_key_down(keycode);
+                if (status == PRESS_RPT) {
+                    if (!repeat)
+                        MOD.WA.exports.on_key_down(keycode);
                 }
                 else {
                     MOD.WA.exports.on_key_up(keycode);
