@@ -744,11 +744,9 @@
                 return Math.log(value);
             };
 
-            imports.fmodf = (y, x) => {
+            imports.atan2f = (y, x) => {
                 return Math.atan2(y, x);
             };
-
-
             
             imports.fmodf = (a, b) => {
                 return a%b;
