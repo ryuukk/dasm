@@ -16,7 +16,6 @@ import dawn.texture;
 import dawn.model;
 import dawn.ecs;
 
-import world.entities;
 import world.renderer;
 
 // TODO: i don't like this

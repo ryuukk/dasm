@@ -3,22 +3,9 @@ module states.gameplay;
 import app;
 
 import rt.dbg;
-
-import dawn.gfx;
-import dawn.ecs;
-import dawn.mesh;
-import dawn.renderer;
-import dawn.assets;
-import dawn.texture;
-import dawn.model;
-import rt.math;
-import rt.memz;
-import rt.collections.array;
-import rt.collections.hashmap;
 import rt.time;
 
 import world.map;
-import world.entities;
 
 
 Map map;
