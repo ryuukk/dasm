@@ -20,9 +20,11 @@ else
 version (Windows)
 {
     import core.sys.windows.windef : HANDLE, LPDWORD, DWORD,
-        SECURITY_ATTRIBUTES, GENERIC_READ, FILE_SHARE_READ, FILE_ATTRIBUTE_NORMAL;
+        SECURITY_ATTRIBUTES, GENERIC_READ, FILE_SHARE_READ, FILE_ATTRIBUTE_NORMAL,
+        GENERIC_WRITE;
     import core.sys.windows.winbase : OPEN_EXISTING, INVALID_HANDLE_VALUE,
-        GetFileSize, CreateFileA, CloseHandle,
+        CREATE_ALWAYS,
+        GetFileSize, CreateFileA, CloseHandle, WriteFile, FlushFileBuffers,
         ReadFile;
 }
 else version (Posix)
@@ -173,7 +175,7 @@ struct OutputFile
         {
             handle = cast(HANDLE) CreateFileA(path.ptr, GENERIC_WRITE, 0, null, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, null);
             is_error = INVALID_HANDLE_VALUE == handle;
-            return !m_is_error;
+            return !is_error;
         }
         else version(Posix)
         {
@@ -190,8 +192,8 @@ struct OutputFile
         {
             if (INVALID_HANDLE_VALUE != cast(HANDLE)handle)
             {
-                CloseHandle(cast(HANDLE)m_handle);
-                handle = cast(void*)INVALID_HANDLE_VALUE;
+                CloseHandle(cast(HANDLE) handle);
+                handle = cast(void*) INVALID_HANDLE_VALUE;
             }
         }
         else version(Posix)
@@ -211,7 +213,7 @@ struct OutputFile
         {
             assert(INVALID_HANDLE_VALUE != cast(HANDLE)handle);
             ulong written = 0;
-            WriteFile(cast(HANDLE)m_handle, data, cast(DWORD)size, cast(LPDWORD)&written, null);
+            WriteFile(cast(HANDLE) handle, data, cast(DWORD)size, cast(LPDWORD)&written, null);
             is_error = is_error || size != written;
             return !is_error;
         }
@@ -229,7 +231,7 @@ struct OutputFile
         version (Windows)
         {
             assert(null != handle);
-            FlushFileBuffers(cast(HANDLE)m_handle);
+            FlushFileBuffers(cast(HANDLE) handle);
         }
         else version(Posix)
         {
@@ -421,7 +423,7 @@ struct FS
         return true;
     }
 
-    AsyncHandle get_content_async(string path, content_cb_t callback)
+    AsyncHandle get_content_async(string path, scope content_cb_t callback)
     {
         assert(path.length > 0);
         assert(path.length <= 256);
