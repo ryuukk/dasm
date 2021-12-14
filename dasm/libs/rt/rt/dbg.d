@@ -69,9 +69,11 @@ void LINFO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
     set_color(RESET);
     print_str("[INFO] ");
 
-    set_color(BLUE);
     version (DBG_PRINT_PATH)
+    {
+        set_color(GRAY);
         DBG_PRINT_PATH(file, line);
+    }
 
     set_color(RESET);
     writef_impl(fmt, args);
@@ -83,9 +85,11 @@ void LWARN(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
     set_color(RED);
     print_str("[WARN] ");
 
-    set_color(WHITE);
     version (DBG_PRINT_PATH)
+    {
+        set_color(GRAY);
         DBG_PRINT_PATH(file, line);
+    }
 
     set_color(RESET);
     writef_impl(fmt, args);
@@ -98,9 +102,11 @@ void LERRO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
     set_color(RED);
     print_str("[ERRO] ");
 
-    set_color(WHITE);
     version (DBG_PRINT_PATH)
+    {
+        set_color(GRAY);
         DBG_PRINT_PATH(file, line);
+    }
 
     set_color(RESET);
     writef_impl(fmt, args);
@@ -112,8 +118,12 @@ void LERRO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
 void writeln(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
     version (DBG_PRINT_PATH)
+    {
+        set_color(GRAY);
         DBG_PRINT_PATH(file, line);
+    }
     
+    set_color(RESET);
     writef_impl(fmt, args);
 
     print_char('\n');
@@ -122,7 +132,12 @@ void writeln(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line
 void writef(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
     version (DBG_PRINT_PATH)
+    {
+        set_color(GRAY);
         DBG_PRINT_PATH(file, line);
+    }
+        
+    set_color(RESET);
     writef_impl(fmt, args);
 }
 
@@ -372,6 +387,7 @@ version(Windows)
     enum PINK    = 5;
     enum CYAN    = 3;
     enum WHITE   = 15;
+    enum GRAY   = 8;
 
     void set_color(short color)
     {
@@ -392,6 +408,7 @@ else
     enum PINK = "\033[1;35m";
     enum CYAN = "\033[1;36m";
     enum WHITE = "\033[1;37m";
+    enum GRAY = "\033[1;94m";
     
     void set_color(const(char)* color)
     {
