@@ -102,7 +102,7 @@
 
     var WGL_init_context = (canvas, attr) =>
     {
-        var attr = { majorVersion: 1, minorVersion: 0, antialias: true, alpha: false };
+        var attr = { majorVersion: 3, minorVersion: 0, antialias: false, alpha: false };
         var errorInfo = '';
         try
         {

@@ -1,7 +1,7 @@
 module dawn.assets;
 
 import rt.collections.hashmap;
-import mem = rt.memory;
+import mem = rt.memz;
 import rt.filesystem;
 import rt.dbg;
 
@@ -64,7 +64,7 @@ struct Resource
         return ++ref_count;
     }
 
-    uint decreate_ref_count()
+    uint decrement_ref_count()
     {
         assert(ref_count > 0);
         --ref_count;
@@ -328,7 +328,7 @@ struct ModelAsset
         string id = reader.read_cstring();
 
         mdl = Model();
-        mdl.load(reader, base.cache.allocator);
+        mdl.load(reader, base.cache.allocator, base.cache);
         return true;
     }
 }
@@ -340,7 +340,6 @@ struct FontAsset
     Resource base;
     FontAtlas fnt;
     TextureAsset* tex;
-    ubyte[128000] tmp;
 
     void create(char[256] path, ResourceCache* cache)
     {
@@ -359,7 +358,7 @@ struct FontAsset
     {
         // TODO: i should test this
         // it's a dependency
-        tex.base.decreate_ref_count();
+        tex.base.decrement_ref_count();
     }
 
     bool load(uint size, const(ubyte)* buffer)
@@ -422,6 +421,27 @@ struct FontAsset
         base.add_dependency(cast(Resource*)tex);
 
         return true;
+    }
+}
+
+struct TMPL_Asset
+{
+    Resource base;
+
+    void create(char[256] path, ResourceCache* cache)
+    {
+        base.create(path, cache);
+        base.vt_load = &load;
+        base.vt_unload = &unload;
+    }
+
+    void unload(Resource* res)
+    {
+    }
+
+    bool load(uint size, const(ubyte)* buffer)
+    {
+        return false;
     }
 }
 
@@ -560,11 +580,10 @@ uint murmum_hash_2(const(void)* key, int len, uint seed)
 
 
 
-
 version(NONE):
 unittest
 {
-    import rt.memory;
+    import rt.memz;
     import rt.time;
     import rt.thread;
     Allocator* allocator = MALLOCATOR.ptr();

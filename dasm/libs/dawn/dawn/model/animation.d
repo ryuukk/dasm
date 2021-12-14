@@ -247,6 +247,8 @@ struct AnimationController
 
     bool animate(const(char)[] id, float offset = 0.0f, float duration = -1.0f, int loopCount = -1, float speed = 1, float transitionTime = 0.0f)
     {
+        if (!target) return false;
+        
         auto animation = target.get_animation(id);
         if(animation == null)
             return false;

@@ -8,7 +8,7 @@ import dawn.renderer: BlendState;
 
 import rt.dbg;
 import rt.math;
-import rt.memory;
+import rt.memz;
 
 
 struct SpriteBatch
@@ -149,8 +149,8 @@ struct SpriteBatch
 
     private void setup_matrices()
     {
-        _shader.set_uniform_mat4("u_proj", &_projectionMatrix);
-        _shader.set_uniform_mat4("u_trans", &_transformMatrix);
+        _shader.set_uniform_mat4("u_proj", _projectionMatrix);
+        _shader.set_uniform_mat4("u_trans", _transformMatrix);
         _shader.set_uniformi("u_texture", 0);
     }
 

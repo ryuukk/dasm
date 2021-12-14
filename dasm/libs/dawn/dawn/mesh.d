@@ -3,10 +3,11 @@ module dawn.mesh;
 import rt.dbg;
 import rt.math;
 import rt.str;
-import rt.memory;
+import rt.memz;
 
 import dawn.gl;
 import dawn.renderer;
+import dawn.assets;
 
 enum LocType : byte
 {
@@ -34,6 +35,7 @@ struct ShaderProgram {
     int num_uniforms = 0;
 
     bool require_uniform = true;
+    char[4096] log = 0;
 
     void create(const(char)[] v, const(char)[] f)
     {
@@ -55,7 +57,12 @@ struct ShaderProgram {
     }
 
     void dispose()
-    {}
+    {
+        glUseProgram(0);
+        glDeleteShader(v_handle);
+        glDeleteShader(f_handle);
+        glDeleteProgram(program);
+    }
 
     void fetch_attributes()
     {
@@ -191,7 +198,7 @@ struct ShaderProgram {
             glGetShaderInfoLog(vs, buffer.length, &l, buffer.ptr);
             
 
-            writeln("Can't compile shader {}:\n{}",  (is_v ? "VERTEX" : "FRAGMENT"), buffer);
+            LERRO("Can't compile shader {}:\n{}",  (is_v ? "VERTEX" : "FRAGMENT"), buffer);
             return 0;
         }
 
@@ -218,12 +225,12 @@ struct ShaderProgram {
         {
             int logLen = 0;
             glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLen);
-            
-            char[4096] buffer = 0;
+
             int l = 0;
-            glGetProgramInfoLog(program, buffer.length, &l, buffer.ptr);
+            glGetProgramInfoLog(program, log.length, &l, log.ptr);
             
-            panic("can't link program:\n%s", buffer.ptr);
+            //panic("can't link program:\n%s", buffer.ptr);
+            return 0;
         }
 
         return program;
@@ -290,7 +297,7 @@ struct ShaderProgram {
         if (location == -2) {
             location = glGetUniformLocation(program, name.ptr);
             if (location == -1 && pedantic) {
-                panic("can't find unfiform: %s", name.ptr);
+                panic("can't find unfiform: {}", name.ptr);
             }
 
             // uniform.location = location;
@@ -300,7 +307,7 @@ struct ShaderProgram {
     }
 
     // --- BY NAME
-    void set_uniform_mat4(const(char)[] name, mat4* value) {
+    void set_uniform_mat4(const(char)[] name, ref mat4 value) {
         check_managed();
         int location = fetch_uniform_location(name, require_uniform); // TODO: change once static pedantic bool added
 
@@ -343,7 +350,7 @@ struct ShaderProgram {
 
     // --- BY LOCATION
        
-    void set_uniform_mat4(int location, mat4* value) {
+    void set_uniform_mat4(int location, ref mat4 value) {
         check_managed();
         glUniformMatrix4fv(location, 1, 0, &value.m00);
     }
@@ -388,6 +395,7 @@ enum VertexUsage : int
     BONE_WEIGHT = 64,
     TANGENT = 128,
     BINORMAL = 256,
+    TEXTURE_INDEX = 512,
     MAX = 9,
 }
 
@@ -527,7 +535,18 @@ struct VertexAttribute
         ret._usage_index = number_of_trailing_zeros(VertexUsage.TEXTURE_COOR);
         return ret;
     }
-
+    static VertexAttribute tex_index()
+    {
+        VertexAttribute ret;
+        ret.usage = VertexUsage.TEXTURE_INDEX;
+        ret.num_components = 1;
+        ret.aliass = "a_texIndex";
+        ret.gl_type = GL_FLOAT;
+        ret.unit = 0;
+        ret._usage_index = number_of_trailing_zeros(VertexUsage.TEXTURE_INDEX);
+        return ret;
+    }
+    
     static VertexAttribute blend_weight(int index)
     {
         VertexAttribute ret;
@@ -560,8 +579,12 @@ struct VertexBuffer
     {
         int vsize = size * (attrs.vertex_size / 4);
 
+        assert(vsize > 0);
+
         attributes = attrs;
 
+
+        LINFO("create vertices of size: {} :: {} :: {} {}", vsize, size, float.sizeof * vsize, attrs.vertex_size);
         auto ptr = cast(float*) malloc(float.sizeof * vsize);
         vertices = ptr[0 .. vsize];
 
@@ -603,8 +626,9 @@ struct VertexBuffer
             auto loc = program.get_attrib_loc(attr.aliass);
             if(loc < 0)
             {
-                //LINFO("no va for: %s", attr.aliass.ptr);
-                writeln("no va for: {}", attr.aliass);
+                // TODO: better log this
+                // happens when a_ not used in shader
+                // LWARN("no va for: {}", attr.aliass.ptr);
                 continue;
             }
 
@@ -636,6 +660,9 @@ struct VertexBuffer
 
     void set_data(const float[] data, int offset, int count)
     {
+        assert(offset >= 0);
+        assert(offset < data.length);
+        assert((offset+count) <= data.length);
         is_dirty = true;
 
         for(int i = 0; i < count; i++) 
@@ -651,7 +678,7 @@ struct VertexBuffer
     {
         if(is_bound)
         {
-			glBindBuffer(GL_ARRAY_BUFFER, buffer_handle);
+            glBindBuffer(GL_ARRAY_BUFFER, buffer_handle);
             glBufferData(GL_ARRAY_BUFFER, vertices.length * 4, vertices.ptr, usage);
             is_dirty = false;
         }
@@ -776,14 +803,14 @@ struct Mesh
     }
 
     void render(ShaderProgram* program, uint primitiveType) {
-		render(
+        render(
             program,
             primitiveType,
             0,
             ib.get_num_max_indices() > 0 ? ib.get_num_indices() : vb.get_num_vertices(),
             autobind
         );
-	}
+    }
 
     void render(ShaderProgram* program, uint primitiveType, int offset, int count, bool autoBind)
     {
@@ -820,6 +847,131 @@ struct Mesh
         vb.unbind(program, locations);
         if(ib.get_num_indices() > 0) ib.unbind();
     }
+
+    VertexAttribute* get_vert_attr(VertexUsage usage)
+    {
+        for(int i = 0; i < vb.attributes.num_attributes; i++)
+        {
+            auto attr = &vb.attributes.attributes[i];
+            if (attr.usage == usage)
+                return attr;
+        }
+        return null;
+    }
+
+    BoundingBox calculate_bounds()
+    {
+        BoundingBox bbox;
+        bbox.inf();
+		int numVertices = vb.get_num_vertices();
+        assert(numVertices > 0);
+
+		float[] verts = vb.vertices;
+		VertexAttribute* posAttrib = get_vert_attr(VertexUsage.POSITION);
+		int offset = posAttrib.offset / 4;
+		int vertexSize = vb.attributes.vertex_size / 4;
+		int idx = offset;
+
+		switch (posAttrib.num_components) {
+		case 1:
+			for (int i = 0; i < numVertices; i++) {
+				bbox.ext(verts[idx], 0, 0);
+				idx += vertexSize;
+			}
+			break;
+		case 2:
+			for (int i = 0; i < numVertices; i++) {
+				bbox.ext(verts[idx], verts[idx + 1], 0);
+				idx += vertexSize;
+			}
+			break;
+		case 3:
+			for (int i = 0; i < numVertices; i++) {
+				bbox.ext(verts[idx], verts[idx + 1], verts[idx + 2]);
+				idx += vertexSize;
+			}
+			break;
+        default:break;
+		}
+        return bbox;
+    }
+
+    void calculate_bounds(ref BoundingBox bounds, int offset, int count, mat4* transform = null)
+    {
+        extend_bounds(bounds.inf(), offset, count, transform);
+    }
+
+    void extend_bounds(ref BoundingBox bounds, int offset, int count, mat4* transform = null)
+    {
+	    int numIndices = ib.get_num_indices();
+		int numVertices = vb.get_num_vertices();
+		int max = numIndices == 0 ? numVertices : numIndices;
+		if (offset < 0 || count < 1 || offset + count > max)
+            panic("invalid part specified ( offset='{}' count='{}' max='{}' )", offset, count, max);
+
+		float[] verts = vb.vertices;
+		int[] index = ib.buffer;
+
+		VertexAttribute* posAttrib = get_vert_attr(VertexUsage.POSITION);
+		int posoff = posAttrib.offset / 4;
+		int vertexSize = vb.attributes.vertex_size / 4;
+		int end = offset + count;
+
+		switch (posAttrib.num_components) {
+		case 1:
+			if (numIndices > 0) {
+				for (int i = offset; i < end; i++) {
+					int idx = (index[i]) * vertexSize + posoff;
+					v3 tmpV = v3(verts[idx], 0, 0);
+					if (transform != null) tmpV = tmpV.mul(transform);
+					bounds.ext(tmpV.tupleof);
+				}
+			} else {
+				for (int i = offset; i < end; i++) {
+					int idx = i * vertexSize + posoff;
+					v3 tmpV = v3(verts[idx], 0, 0);
+					if (transform != null) tmpV = tmpV.mul(transform);
+					bounds.ext(tmpV.tupleof);
+				}
+			}
+			break;
+		case 2:
+			if (numIndices > 0) {
+				for (int i = offset; i < end; i++) {
+					int idx = (index[i]) * vertexSize + posoff;
+					v3 tmpV = v3(verts[idx], verts[idx + 1], 0);
+					if (transform != null) tmpV = tmpV.mul(transform);
+					bounds.ext(tmpV.tupleof);
+				}
+			} else {
+				for (int i = offset; i < end; i++) {
+					int idx = i * vertexSize + posoff;
+					v3 tmpV = v3(verts[idx], verts[idx + 1], 0);
+					if (transform != null) tmpV = tmpV.mul(transform);
+					bounds.ext(tmpV.tupleof);
+				}
+			}
+			break;
+		case 3:
+			if (numIndices > 0) {
+				for (int i = offset; i < end; i++) {
+					int idx = (index[i]) * vertexSize + posoff;
+					v3 tmpV = v3(verts[idx], verts[idx + 1], verts[idx + 2]);
+					if (transform != null) tmpV = tmpV.mul(transform);
+					bounds.ext(tmpV.tupleof);
+				}
+			} else {
+				for (int i = offset; i < end; i++) {
+					int idx = i * vertexSize + posoff;
+					v3 tmpV = v3(verts[idx], verts[idx + 1], verts[idx + 2]);
+					if (transform != null) tmpV = tmpV.mul(transform);
+					bounds.ext(tmpV.tupleof);
+				}
+			}
+			break;
+        default: break;
+		}
+    }
 }
 
 struct MeshPart
@@ -831,9 +983,9 @@ struct MeshPart
     Mesh* mesh;
 
     // TODO: finish
-    //Vec3 center;
-    //Vec3 halfExtents;
-    //float radius = -1;
+    v3 center;
+    v3 halfExtents;
+    float radius = -1;
 
     void render(ShaderProgram* program, bool autobind)
     {
@@ -842,7 +994,15 @@ struct MeshPart
 
     void update()
     {
-        
+        BoundingBox bounds;
+        mesh.extend_bounds(bounds, offset, size);
+
+		center = bounds.cnt;
+		halfExtents = bounds.cnt * 0.5;
+		radius = v3.len(halfExtents.x, halfExtents.y, halfExtents.z);
+
+        LINFO("{} -> {}:{}:{} r: {}", id, center.x, center.y, center.z, radius);
+        LINFO("{} -> he {}:{}:{}", id, halfExtents.x, halfExtents.y, halfExtents.z);
     }
 
     void reset()
@@ -880,7 +1040,7 @@ struct MeshPart
 enum UsagColorFlag : ubyte
 {
     fNONE = 0,
-	fcDiffuse 			= 1 << 0,
+    fcDiffuse 			= 1 << 0,
     fcAmbient 			= 1 << 1,
     fcEmissive 			= 1 << 2,
     fcSpecular 			= 1 << 3,
@@ -907,6 +1067,8 @@ enum AttributeType : ulong
 struct DiffuseTexAttribute
 {
     char[32] id;
+
+    TextureAsset* texture;
 
     float offset_u = 0;
     float offset_v = 0;

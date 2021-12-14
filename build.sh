@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-BUILD=debug
-OPT=false
+BUILD=true
+OPT=true
 OUTPUT=bin/game.wasm # for opt build
 
 echo "Building for WASM in '$BUILD' mode opt: '$OPT' os: '$OSTYPE'" 

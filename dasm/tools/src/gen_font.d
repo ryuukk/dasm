@@ -1,6 +1,6 @@
 import rt.dbg;
 import rt.math;
-import rt.memory;
+import rt.memz;
 
 import freetype;
 
@@ -81,10 +81,13 @@ void tick(Engine* e, float dt)
     result_fc.clear();
     result_fc.add_text(test_text, 8, e.height);
 
+
+    // render ui font
     batch.begin();
     ui_fc.draw(batch);
     batch.end();
 
+    // render text msg
     batch.begin();
     result_fc.draw(batch);
     batch.end();

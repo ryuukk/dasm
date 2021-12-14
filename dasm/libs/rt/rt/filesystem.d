@@ -4,7 +4,7 @@ import rt.dbg;
 import rt.sync;
 import rt.time;
 import rt.str;
-import mem = rt.memory;
+import mem = rt.memz;
 import rt.collections.hashmap;
 import rt.collections.array;
 

@@ -25,6 +25,7 @@ version (WASM)
     float tanf(float value);
     float absf(float value);
 
+    float logf(float value);
     float roundf(float value);
     float atan2f(float y, float x);
 }
@@ -73,6 +74,15 @@ else
         return cmath.roundf(value);
     }
 
+    float logf(float value)
+    {
+        return cmath.log(value);
+    }
+
+    double pow(double x, double y)
+    {
+        return cmath.pow(x, y);
+    }
 }
 
 float dst(float x1, float y1, float x2, float y2)
@@ -100,7 +110,6 @@ auto min(F)(F x, F y) if (__traits(isIntegral, F))
 {
     return y < x ? y : x;
 }
-
 
 T max(T, U)(T a, U b)
 if (is(T == U) && is(typeof(a < b)))
@@ -180,6 +189,20 @@ struct v2
                 y /= other.y;
                 return this;
             }
+            else
+                static assert(0, "Operator " ~ op ~ " not implemented");
+        }
+
+        v2 opBinary(string op)(float other)
+        {
+            static if (op == "+")
+                return v2(x + other, y + other);
+            else static if (op == "-")
+                return v2(x - other, y - other);
+            else static if (op == "*")
+                return v2(x * other, y * other);
+            else static if (op == "/")
+                return v2(x / other, y / other);
             else
                 static assert(0, "Operator " ~ op ~ " not implemented");
         }
@@ -286,7 +309,15 @@ struct v3
     }
 
     pragma(inline)
-    v3 mul(in mat4 m)
+    v3 mul(ref mat4 m)
+    {
+        return v3(x * m.m00 + y * m.m01 + z * m.m02 + m.m03,
+                x * m.m10 + y * m.m11 + z * m.m12 + m.m13, x * m.m20 + y * m.m21 + z * m.m22 + m
+                .m23);
+    }
+
+    pragma(inline)
+    v3 mul(mat4* m)
     {
         return v3(x * m.m00 + y * m.m01 + z * m.m02 + m.m03,
                 x * m.m10 + y * m.m11 + z * m.m12 + m.m13, x * m.m20 + y * m.m21 + z * m.m22 + m
@@ -387,7 +418,7 @@ struct v3
     }
 
     pragma(inline)
-    static v3 lerp(in v3 lhs, in v3 rhs, float t)
+    static v3 lerp(const ref v3 lhs, const ref v3 rhs, float t)
     {
         if (t > 1f)
         {
@@ -408,13 +439,13 @@ struct v3
     }
 
     pragma(inline)
-    static float dot(in v3 lhs, in v3 rhs)
+    static float dot(ref v3 lhs, ref v3 rhs)
     {
         return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
     }
 
     pragma(inline)
-    static v3 cross(in v3 lhs, in v3 rhs)
+    static v3 cross(ref v3 lhs, ref v3 rhs)
     {
         v3 res;
         res.x = lhs.y * rhs.z - lhs.z * rhs.y;
@@ -424,7 +455,7 @@ struct v3
     }
 
     pragma(inline)
-    static v3 rotate(in v3 lhs, in v3 axis, float angle)
+    static v3 rotate(ref v3 lhs, ref v3 axis, float angle)
     {
         auto rotation = quat.fromAxis(axis, angle);
         auto matrix = mat4.set(0, 0, 0, rotation.x, rotation.y, rotation.z, rotation.w);
@@ -433,7 +464,7 @@ struct v3
     }
 
     pragma(inline)
-    static v3 transform(in v3 lhs, in mat4 matrix)
+    static v3 transform(ref v3 lhs, ref mat4 matrix)
     {
         float inv_w = 1.0f / (lhs.x * matrix.m30 + lhs.y * matrix.m31 + lhs.z
                 * matrix.m32 + matrix.m33);
@@ -548,7 +579,7 @@ struct mat4
             return this;
         }
 
-        static mat4 inv(in mat4 mat)
+        static mat4 inv(ref mat4 mat)
         {
             float lDet = mat.m30 * mat.m21 * mat.m12 * mat.m03 - mat.m20 * mat.m31
                 * mat.m12 * mat.m03 - mat.m30 * mat.m11 * mat.m22 * mat.m03 + mat.m10
@@ -636,12 +667,14 @@ struct mat4
             return tmp;
         }
 
+        pragma(inline, true)
         float det3x3()
         {
             return m00 * m11 * m22 + m01 * m12 * m20 + m02 * m10 * m21 - m00 * m12 * m21
                 - m01 * m10 * m22 - m02 * m11 * m20;
         }
 
+        pragma(inline, true)
         v3 get_translation()
         {        
     	    v3 position;
@@ -650,7 +683,8 @@ struct mat4
     	    position.z = m23;
     	    return position;
         }
-        
+
+        pragma(inline, true)        
         bool has_rot_or_scl () {
             return !(m00 == 1 && m11 == 1 &&  m22 == 1
                      &&  m01 == 0 
@@ -831,7 +865,7 @@ struct mat4
     }
 
     pragma(inline)
-    static mat4 set(in v3 translation, in quat rotation)
+    static mat4 set(ref v3 translation, ref quat rotation)
     {
         float xs = rotation.x * 2.0f, ys = rotation.y * 2.0f, zs = rotation.z * 2.0f;
         float wx = rotation.w * xs, wy = rotation.w * ys, wz = rotation.w * zs;
@@ -862,7 +896,7 @@ struct mat4
     }
 
     pragma(inline)
-    static mat4 set(in v3 translation, in quat rotation, in v3 scale)
+    static mat4 set(ref v3 translation, ref quat rotation, ref v3 scale)
     {
         float xs = rotation.x * 2.0f, ys = rotation.y * 2.0f, zs = rotation.z * 2.0f;
         float wx = rotation.w * xs, wy = rotation.w * ys, wz = rotation.w * zs;
@@ -893,7 +927,7 @@ struct mat4
     }
 
     pragma(inline)
-    static mat4 mult(in mat4 lhs, in mat4 rhs)
+    static mat4 mult(ref mat4 lhs, ref mat4 rhs)
     {
         return mat4(lhs.m00 * rhs.m00 + lhs.m01 * rhs.m10 + lhs.m02 * rhs.m20 + lhs.m03 * rhs.m30,
                 lhs.m10 * rhs.m00 + lhs.m11 * rhs.m10 + lhs.m12 * rhs.m20 + lhs.m13 * rhs.m30,
@@ -944,7 +978,7 @@ struct mat4
     }
 
     pragma(inline)
-    static mat4 multiply(in mat4 lhs, in mat4 rhs)
+    static mat4 multiply(ref mat4 lhs, ref mat4 rhs)
     {
         return mat4(lhs.m00 * rhs.m00 + lhs.m01 * rhs.m10 + lhs.m02 * rhs.m20 + lhs.m03 * rhs.m30,
                 lhs.m10 * rhs.m00 + lhs.m11 * rhs.m10 + lhs.m12 * rhs.m20 + lhs.m13 * rhs.m30,
@@ -1001,7 +1035,7 @@ struct quat
     }
 
     pragma(inline)
-    void slerp(in quat end, float alpha)
+    void slerp(const ref quat end, float alpha)
     {
         float d = x * end.x + y * end.y + z * end.z + w * end.w;
         float absDot = d < 0.0f ? -d : d;
@@ -1056,13 +1090,13 @@ struct quat
     }
 
     pragma(inline)
-    static quat fromAxis(in v3 axis, float rad)
+    static quat fromAxis(const ref v3 axis, float rad)
     {
         return fromAxis(axis.x, axis.y, axis.z, rad);
     }
 
     pragma(inline)
-    static quat slerp(in quat quaternion1, quat quaternion2, float amount)
+    static quat slerp(const ref quat quaternion1, const ref quat quaternion2, float amount)
     {
         float num2;
         float num3;
@@ -1097,7 +1131,7 @@ struct quat
     }
 
     pragma(inline)
-    static quat lerp(in quat lhs, in quat rhs, float t)
+    static quat lerp(ref quat lhs, ref quat rhs, float t)
     {
         if (t > 1f)
         {
@@ -1129,6 +1163,88 @@ struct quat
             q.z = lhs.w * rhs.z + lhs.z * rhs.w + lhs.x * rhs.y - lhs.y * rhs.x;
             return q;
         }
+}
+
+struct BoundingBox
+{
+    v3 min;
+    v3 max;
+    v3 cnt;
+    v3 dim;
+
+    void update()
+    {
+        cnt = (min + max) * 0.5;
+        dim = max - min;
+    }
+
+    ref BoundingBox inf() return
+    {
+        min = v3(float.infinity, float.infinity, float.infinity);
+        min = v3(-float.infinity, -float.infinity, -float.infinity);
+        cnt = v3.ZERO;
+        dim = v3.ZERO;
+        return this;
+    }
+
+    void set (v3 minimum, v3 maximum)
+    {
+        min.x = minimum.x < maximum.x ? minimum.x : maximum.x;
+        min.y = minimum.y < maximum.y ? minimum.y : maximum.y;
+		min.z = minimum.z < maximum.z ? minimum.z : maximum.z;
+
+        max.x = minimum.x > maximum.x ? minimum.x : maximum.x;
+        max.y = minimum.y > maximum.y ? minimum.y : maximum.y;
+		max.z = minimum.z > maximum.z ? minimum.z : maximum.z;
+		update();
+    }
+
+    void ext(float x, float y, float z)
+    {
+        float minf(float a, float b)
+        {
+            return a > b ? b : a;
+        }
+
+        float maxf(float a, float b)
+        {
+            return a > b ? a : b;
+        }
+
+        v3 minimum;
+        minimum.x = minf(min.x, x);
+        minimum.y = minf(min.y, y);
+        minimum.z = minf(min.z, z);
+
+        v3 maximum;
+        maximum.x = maxf(max.x, x);
+        maximum.y = maxf(max.y, y);
+        maximum.z = maxf(max.z, z);
+
+        set(minimum, maximum);
+    }
+
+    bool is_valid () 
+    {
+		return min.x <= max.x && min.y <= max.y && min.z <= max.z;
+	}
+    bool intersects (ref BoundingBox b) {
+		if (!is_valid()) return false;
+
+		// test using SAT (separating axis theorem)
+
+		float lx = abs(this.cnt.x - b.cnt.x);
+		float sumx = (this.dim.x / 2.0f) + (b.dim.x / 2.0f);
+
+		float ly = abs(this.cnt.y - b.cnt.y);
+		float sumy = (this.dim.y / 2.0f) + (b.dim.y / 2.0f);
+
+		float lz = abs(this.cnt.z - b.cnt.z);
+		float sumz = (this.dim.z / 2.0f) + (b.dim.z / 2.0f);
+
+		return (lx <= sumx && ly <= sumy && lz <= sumz);
+
+	}
 }
 
 struct Colorf
@@ -1266,4 +1382,75 @@ struct Ray
         direction = (tmp  - origin).nor();
         return this;
     }
+}
+
+
+int nextInt()
+{
+    return cast(int) extract_number();
+}
+
+double nextDouble()
+{
+    return extract_number() / LOWER_MASK;
+}
+
+int rand_range(int min, int max)
+{
+    return (min == max) ? min : (min + (extract_number() % (max - min)));
+}
+
+double rand_range(double min, double max)
+{
+    return min + ((max - min) * nextDouble());
+}
+
+package:
+enum UPPER_MASK =		0x80000000;
+enum LOWER_MASK =		0x7fffffff;
+enum TEMPERING_MASK_B =	0x9d2c5680; 
+enum TEMPERING_MASK_C =	0xefc60000;
+uint[624] MT;
+uint indx;
+
+void twist()
+{
+    for (int i = 0; i < 624; i++)
+    {
+        uint x = (MT[i] & UPPER_MASK) + (MT[(i + 1) % 624] & LOWER_MASK);
+        MT[i] = MT[(i + 397) % 624] ^ (x >> 1);
+        if ((x % 2) != 0)
+        { // lowest bit of x is 1
+            MT[i] ^= 0x9908b0df;
+        }
+    }
+}
+
+void seed_mt(int seed)
+{
+    int i;
+    indx = 0;
+    MT[0] = seed & 0xffffffff;
+    for (i = 1; i < 624; i++)
+    { // loop over each element
+        MT[i] = (0x6c078965 * (MT[i - 1] ^ (MT[i - 1] >> (32 - 2))) + i) & 0xffffffff;
+    }
+}
+
+// Extract a tempered value based on MT[indx]
+// calling twist() every n numbers
+uint extract_number()
+{
+    if (indx == 0)
+    {
+        twist();
+    }
+    uint y = MT[indx];
+    y ^= ((y >> 11) /*& 0xffffffff*/ );
+    y ^= ((y << 7) & TEMPERING_MASK_B);
+    y ^= ((y << 15) & TEMPERING_MASK_C);
+    y ^= (y >> 18);
+
+    indx = (indx + 1) % 624;
+    return (y);
 }

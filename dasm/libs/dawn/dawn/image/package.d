@@ -124,7 +124,7 @@ version(IF__CUSTOM_ALLOC) {
     }
     else
     {
-        import mem = rt.memory;
+        import mem = rt.memz;
         void* _malloc(size_t size)             { return mem.malloc(size);       }
         void* _realloc(void* ptr, size_t size) { assert(0); }
         void _free(void* ptr)                  { return mem.free(ptr);          }

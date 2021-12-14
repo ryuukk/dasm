@@ -1,4 +1,4 @@
-module rt.memory;
+module rt.memz;
 
 import rt.dbg;
 
@@ -186,57 +186,57 @@ version (WASM)
         return str;
     }
 
-// from spasm
-// extern (C) void * memset(void* ptr, int value, size_t num) {
+    // from spasm
+    // extern (C) void * memset(void* ptr, int value, size_t num) {
 
-//     writeln("memset: {} {} {}", ptr, value, num);
+    //     writeln("memset: {} {} {}", ptr, value, num);
 
-//     ubyte val = cast(ubyte)value;
-//     ubyte* p = cast(ubyte*)ptr;
-//     foreach(i;0..num)
-//         p[i] = val;
-//     return ptr;
-// }
+    //     ubyte val = cast(ubyte)value;
+    //     ubyte* p = cast(ubyte*)ptr;
+    //     foreach(i;0..num)
+    //         p[i] = val;
+    //     return ptr;
+    // }
 
-// extern(C) void* memset(void* s, int c, size_t n) {
-// 	// auto d = cast(ubyte*) s;
-// 	// while(n) {
-// 	// 	*d = cast(ubyte) c;
-// 	// 	n--;
-// 	// }
-// 	// return s;
-//     assert(!(n & 3));
-//     writeln("memset: {} {} {}", s, c, n);
-//     byte* p = cast(byte*)s;
-//     byte x = cast(byte) (c & 0xff);
-//     uint leftover = n & 0x7;
+    // extern(C) void* memset(void* s, int c, size_t n) {
+    // 	// auto d = cast(ubyte*) s;
+    // 	// while(n) {
+    // 	// 	*d = cast(ubyte) c;
+    // 	// 	n--;
+    // 	// }
+    // 	// return s;
+    //     assert(!(n & 3));
+    //     writeln("memset: {} {} {}", s, c, n);
+    //     byte* p = cast(byte*)s;
+    //     byte x = cast(byte) (c & 0xff);
+    //     uint leftover = n & 0x7;
 
-//     /* Catch the pathological case of 0. */
-//     if (!n)
-//         return s;
+    //     /* Catch the pathological case of 0. */
+    //     if (!n)
+    //         return s;
 
-//     /* To understand what's going on here, take a look at the original
-//      * bytewise_memset and consider unrolling the loop. For this situation
-//      * we'll unroll the loop 8 times (assuming a 32-bit architecture). Choosing
-//      * the level to which to unroll the loop can be a fine art...
-//      */
-//     n = (n + 7) >> 3;
-//     final switch (leftover) {
-//         case 0: do { *p++ = x;
-//         case 7:      *p++ = x;
-//         case 6:      *p++ = x;
-//         case 5:      *p++ = x;
-//         case 4:      *p++ = x;
-//         case 3:      *p++ = x;
-//         case 2:      *p++ = x;
-//         case 1:      *p++ = x;
-//                 } while (--n > 0); 
-//     }
-//     return s;
+    //     /* To understand what's going on here, take a look at the original
+    //      * bytewise_memset and consider unrolling the loop. For this situation
+    //      * we'll unroll the loop 8 times (assuming a 32-bit architecture). Choosing
+    //      * the level to which to unroll the loop can be a fine art...
+    //      */
+    //     n = (n + 7) >> 3;
+    //     final switch (leftover) {
+    //         case 0: do { *p++ = x;
+    //         case 7:      *p++ = x;
+    //         case 6:      *p++ = x;
+    //         case 5:      *p++ = x;
+    //         case 4:      *p++ = x;
+    //         case 3:      *p++ = x;
+    //         case 2:      *p++ = x;
+    //         case 1:      *p++ = x;
+    //                 } while (--n > 0); 
+    //     }
+    //     return s;
 
 
 
-// }
+    // }
 
 
     

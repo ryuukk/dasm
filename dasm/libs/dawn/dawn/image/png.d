@@ -6,7 +6,7 @@
 module dawn.image.png;
 
 import rt.dbg;
-import mem = rt.memory;
+import mem = rt.memz;
 
 import dawn.image;
 

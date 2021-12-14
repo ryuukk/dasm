@@ -2,6 +2,8 @@
 
 PROJECT=game
 CONFIG=desktop
+BUILD=debug
+COMPILER=dmd
 
 if [ "$#" -eq  "1" ]
     then
@@ -15,7 +17,7 @@ if [ "$#" -eq  "2" ]
    CONFIG=$2
 fi
 
-echo "Running: $PROJECT with config: $CONFIG"
+echo "Running: $PROJECT with config: $CONFIG in $BUILD mode built with: $COMPILER"
 cd dasm/$PROJECT
-dub run -c $CONFIG
+dub run -c $CONFIG -b $BUILD --compiler=$COMPILER
 cd ..
