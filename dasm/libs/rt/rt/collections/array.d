@@ -1,6 +1,6 @@
 module rt.collections.array;
 
-import rt.memory;
+import rt.memz;
 import rt.dbg;
 
 struct Array(T)
@@ -132,13 +132,30 @@ struct Array(T)
         size_t diff = new_capacity - capacity;
 
         // TODO This can be optimized to avoid needlessly copying undefined memory.
-        T* new_memory = cast(T*) allocator.reallocate(_items, better_capacity * T.sizeof);
-        _items = new_memory;
-        capacity = better_capacity;
+        // T* new_memory = cast(T*) allocator.reallocate(_items, better_capacity * T.sizeof);
+
+        // _items = new_memory;
+        // capacity = better_capacity;
         
+        // if (diff > 0)
+        // {
+        //     // todo: fill stuff with default values
+        //     for (size_t i = originalLength; i < originalLength + diff; i++)
+        //     {
+        //         _items[i] = T.init;
+        //     }
+        // }
+
+        T* newm = cast(T*) allocator.allocate(better_capacity * T.sizeof);
+        memcpy(newm, _items, capacity * T.sizeof);
+
+        allocator.free(_items);
+
+        capacity = better_capacity;
+        _items = newm;
+
         if (diff > 0)
         {
-            // todo: fill stuff with default values
             for (size_t i = originalLength; i < originalLength + diff; i++)
             {
                 _items[i] = T.init;
@@ -310,8 +327,8 @@ struct Array(T)
 
 struct Arr(T, int CAPACITY)
 {
-    T[CAPACITY] _items;
     int _count = 0;
+    T[CAPACITY] _items;
 
     int length() { return _count;}
     

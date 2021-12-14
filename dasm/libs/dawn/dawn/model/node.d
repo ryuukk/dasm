@@ -1,7 +1,7 @@
 module dawn.model.node;
 
 import rt.math;
-import rt.memory;
+import rt.memz;
 import rt.collections.array;
 
 enum MAX_BONES = 30;

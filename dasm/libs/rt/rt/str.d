@@ -1,6 +1,6 @@
 module rt.str;
 
-import rt.memory;
+import rt.memz;
 import rt.dbg;
 
 version(WASM)
@@ -254,5 +254,19 @@ struct StringBuilder
         if (pos + c >  buffer.length) panic("nope");
         float_to_str(&buffer[pos], value, decimals);
         pos += c;
+    }
+
+    void append_string(const (char)[] str)
+    {
+        assert(pos + str.length < buffer.length);
+
+        memcpy(&buffer[pos], str.ptr, str.length);
+        pos += str.length;
+    }
+
+    char[] slice()
+    {
+        assert(pos > 0);
+        return buffer[0 .. pos];
     }
 }

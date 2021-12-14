@@ -224,14 +224,16 @@ Texture2D create_texture(uint width, uint height, ubyte* ptr, PixelFormat format
     
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    if(format == PixelFormat.Alpha)
+    if (format == PixelFormat.Alpha)
         glTexImage2D(target, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, ptr);
-    else if (format == PixelFormat.Rgba)
-        glTexImage2D(target, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
     else if (format == PixelFormat.Rgb)
         glTexImage2D(target, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, ptr);
-    else assert(false, "nope");
-
+    else if (format == PixelFormat.Rgba)
+        glTexImage2D(target, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, ptr);
+    else
+    {
+        assert(false, "nope");
+    }
 
     glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);

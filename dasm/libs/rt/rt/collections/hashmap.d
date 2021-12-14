@@ -1,7 +1,7 @@
 module rt.collections.hashmap;
 
 import rt.dbg;
-import rt.memory;
+import rt.memz;
 
 struct HashMap(Key, Value,
         Hasher = HashFunc!(Key), Comparer = HashComp!(Key),
@@ -26,11 +26,9 @@ struct HashMap(Key, Value,
     uint elements = 0;
     Allocator* allocator = null;
 
-    static HashMap create(Allocator* alloc)
+    void create(Allocator* alloc)
     {
-        HashMap ret;
-        ret.allocator = alloc;
-        return ret;
+        allocator = alloc;
     }
 
     private:

@@ -3,7 +3,7 @@ module dawn.microui;
 
 public import dawn.microui.atlas;
 
-import rt.memory;
+import rt.memz;
 import rt.str;
 import rt.dbg;
 

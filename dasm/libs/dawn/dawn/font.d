@@ -2,7 +2,7 @@ module dawn.font;
 
 import rt.math;
 import rt.dbg;
-import rt.memory;
+import rt.memz;
 
 import dawn.texture;
 import dawn.spritebatch;
@@ -172,6 +172,8 @@ struct FontCache
         if (text_changed || old_tint != floatTint) {
             text_changed = false;
             old_tint = floatTint;
+            color = floatTint;
+            
             //markup.tint(this, tint);
         }
     }

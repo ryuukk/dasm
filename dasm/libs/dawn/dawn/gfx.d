@@ -4,7 +4,7 @@ import rt.dbg;
 import rt.time;
 import rt.math;
 import rt.filesystem;
-import rt.memory;
+import rt.memz;
 
 import dawn.gl;
 import dawn.assets;
@@ -117,9 +117,9 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
         glClearColor(0.0f,0.0f,0.0f,1.0f);
         glfwSwapBuffers(engine.window_ptr);
         glfwShowWindow(engine.window_ptr);
-
             
         glViewport(0, 0, cast(int)engine.width, cast(int)engine.height);
+        glClearColor(0.0f,0.0f,0.0f,1.0f);
 
         glfwSetFramebufferSizeCallback(engine.window_ptr, &on_fb_size);
 
@@ -146,6 +146,9 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
         {
             glfwMakeContextCurrent(engine.window_ptr);
             glfwSwapInterval(1);
+
+            engine.sw.restart();
+
             
             engine.track();
 
@@ -163,6 +166,8 @@ void create_engine(int width, int height, on_init_t icb, on_exit_t ecb, on_tick_
                 engine.input.prepare_next();
             
             engine.queue.clear();
+
+            engine.tick_time = engine.sw.elapsed().msecs();
 
             glfwSwapBuffers(engine.window_ptr);
             glfwPollEvents();
@@ -265,12 +270,15 @@ struct Engine
     double frame_counter_start = 0;
     int frames = 0;
     int fps = 0;
+    StopWatch sw;
+    double tick_time = 0;
     
     HdpiMode hdpi_mode = HdpiMode.LOGICAL;
 
     void create()
     {
         cache.create();
+        sw.start();
     }
 
     void track()
@@ -386,6 +394,8 @@ version (WASM)
 {
     export extern (C) void WA_render()
     {
+        engine.sw.restart();
+
         engine.track();
         engine.cache.process();
 
@@ -402,6 +412,8 @@ version (WASM)
             engine.input.prepare_next();
 
         engine.queue.clear();
+
+        engine.tick_time = engine.sw.elapsed().msecs();
     }
 
     export extern (C) void on_key_down(int key)

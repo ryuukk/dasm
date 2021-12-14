@@ -116,7 +116,7 @@ struct Camera
         up = tmpVec.crs(direction).nor();
     }
 
-    void rotate(in v3 axis, float angle)
+    void rotate(ref v3 axis, float angle)
     {
             direction = v3.rotate(direction, axis, angle);
             up = v3.rotate(up, axis, angle);

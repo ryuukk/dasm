@@ -3,7 +3,7 @@ module dawn.model.instance;
 import rt.collections.array;
 
 import rt.math;
-import rt.memory;
+import rt.memz;
 import rt.dbg;
 
 import dawn.model;
@@ -55,6 +55,8 @@ struct ModelInstance
 
     void load(Model* model, Allocator* allocator)
     {
+        assert(model);
+        
         this.model = model;
         this.allocator = allocator;
 
@@ -66,6 +68,7 @@ struct ModelInstance
 
     void copy_nodes()
     {
+        assert(model);
         for (int i = 0; i < model.nodes.length; i++)
         {
             auto node = model.nodes.get(i);

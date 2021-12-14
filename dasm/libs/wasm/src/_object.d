@@ -12,7 +12,7 @@ version(WASM):
     So until that issue is sorted out, we'll have to rely on this mess of a file
 +/
 
-import mem = rt.memory;
+import mem = rt.memz;
 import rt.dbg;
 import wasm = wasm;
 

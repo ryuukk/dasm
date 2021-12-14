@@ -2,14 +2,17 @@ module dawn.model;
 
 import rt.collections.array;
 import rt.collections.hashmap;
-import rt.memory;
+import rt.memz;
 import rt.dbg;
 import rt.math;
 import rt.readers;
 
-import dawn.model.node;
-import dawn.model.animation;
+public import dawn.model.node;
+public import dawn.model.animation;
+public import dawn.model.instance;
+
 import dawn.mesh;
+import dawn.assets;
 
 enum MAX_MESH       = 4;
 enum MAX_MATERIAL   = 4;
@@ -30,7 +33,6 @@ struct Model
     Arr!(MeshPart, MAX_PARTS) parts;
 
     Allocator* allocator;
-
     
     void dispose()
     {
@@ -69,9 +71,20 @@ struct Model
                 anim.node_anims.dispose();
         }
         nodePartBones.clear();
-    }
 
-    void load(ref PReader reader, Allocator* allocator)
+
+        foreach(Material* mat; materials)
+        {
+            for(int i = 0; i < mat.num_attrs; i++)
+            {
+                Attribute* attr = &mat.attributes[i];
+                if (attr.type & AttributeType.DIFFUSE_TEXTURE)
+                    attr.diffuse_tex.texture.base.decrement_ref_count();
+            }
+        }
+    }
+    
+    void load(ref PReader reader, Allocator* allocator, ResourceCache* cache)
     {
         this.allocator = allocator;
         nodePartBones.allocator = allocator;
@@ -81,7 +94,7 @@ struct Model
         //});
 
         //benchmark("load_materials", { 
-            load_materials(reader);
+            load_materials(reader, cache);
         //});
 
         //benchmark("load_nodes", { 
@@ -193,10 +206,14 @@ struct Model
                 parts.add(part);
             }
 
+            foreach(MeshPart* part; parts)
+            {
+                part.update();
+            }
         }
     }
 
-    void load_materials(ref PReader reader)
+    void load_materials(ref PReader reader, ResourceCache* cache)
     {
         auto num_materials = reader.read_ubyte();
         //ARRAY materials.create(allocator, num_materials);
@@ -264,8 +281,31 @@ struct Model
 
 	            auto usage = reader.read_ubyte();
 
+                LINFO("load tex: {}", tex_path);
+                import rt.str;
+                import m = rt.memz;
+
+                DiffuseTexAttribute ta;
+                m.memcpy(ta.id.ptr, tex_path.ptr, tex_path.length);
+                assert(tex_path.length < 32);
+
+                // TODO: this is an ugly piece of shitty code
+
+                char[256] buffer = 0;
+                StringBuilder sb;
+                sb.buffer = buffer;
+                sb.append_string("res/textures/");
+                sb.append_string(tex_path);
+                
+                ta.texture = cache.load!(TextureAsset)(buffer);
+                
+
+                Attribute attr;
+                attr.diffuse_tex = ta;
+                attr.type = AttributeType.DIFFUSE_TEXTURE;
                 // TODO: set material
                 //material.add(  )
+                material.set(attr);
             }
 
             materials.add(material);
@@ -520,6 +560,6 @@ void memcpy(char[] dst, string src, size_t len)
 //         if (i >= dst.length) break;
 //         dst[i] = src[i];
 //     }
-import m = rt.memory;
+import m = rt.memz;
     m.memcpy(dst.ptr, src.ptr, len);
 }

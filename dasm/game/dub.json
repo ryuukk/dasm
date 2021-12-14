@@ -3,6 +3,9 @@
     "targetType": "executable",
     "sourcePaths": [ "src" ],
     "importPaths": [ "src" ],
+    "stringImportPaths": [
+        "../../bin/"
+    ],
 
     "configurations": [
         {
@@ -12,6 +15,11 @@
             "workingDirectory": "../../bin",
             "mainSourceFile": "src/app.d",
             "versions": [ "GAME", "DESKTOP", "GL_30", "GLFW_33", "FT_211", "BindFT_Static"],
+            "stringImportPaths": [
+                "./bin/"
+            ],
+            "buildOptions": [
+            ],
             "libs-windows": [
                 "user32",
                 "gdi32",
@@ -22,6 +30,7 @@
             "libs-linux": [
                 "glfw",
                 "freetype",
+                
             ],
             "sourceFiles-windows": [
                 "../libs/glfw/glfw3.lib",

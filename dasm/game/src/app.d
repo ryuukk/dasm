@@ -2,7 +2,7 @@ module app;
 
 import rt.math;
 import rt.time;
-import rt.memory;
+import rt.memz;
 import rt.dbg;
 
 import dawn.gfx;
@@ -77,6 +77,9 @@ void main()
     LINFO("main() found");
 
     create_engine(1280, 720, &on_start, &on_exit, &on_tick);
+
+    // import test;
+    // run_test();
 }
 
 void on_start(Engine* e)
@@ -115,13 +118,15 @@ void on_tick(Engine* e, float dt)
     {
         ctx.curr_state = ctx.next_state;
         ctx.next_state = StateID.NONE;
-        LINFO("New current state: {}", ctx.next_state);
+        LINFO("new current state: {}", ctx.curr_state);
     }
 
     // ctx.fb.bind();
 
     // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // glClearColor(0.2, 0.2, 0.6, 1.0);
+
+    char [256] a = "heee";
 
     auto state = &ctx.states[ctx.curr_state];
     if (state.render_cb)
