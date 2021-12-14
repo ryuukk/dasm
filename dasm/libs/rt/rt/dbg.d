@@ -66,21 +66,28 @@ alias writelnf = writeln;
 
 void LINFO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
+    set_color(RESET);
+    print_str("[INFO] ");
+
+    set_color(BLUE);
     version (DBG_PRINT_PATH)
         DBG_PRINT_PATH(file, line);
 
-    print_str("[INFO] ");
-
+    set_color(RESET);
     writef_impl(fmt, args);
 
     print_char('\n');
 }
 void LWARN(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
-    version (DBG_PRINT_PATH)
-        DBG_PRINT_PATH(file, line);
+    set_color(RED);
     print_str("[WARN] ");
 
+    set_color(WHITE);
+    version (DBG_PRINT_PATH)
+        DBG_PRINT_PATH(file, line);
+
+    set_color(RESET);
     writef_impl(fmt, args);
 
     print_char('\n');
@@ -88,11 +95,14 @@ void LWARN(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
 
 void LERRO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
+    set_color(RED);
+    print_str("[ERRO] ");
+
+    set_color(WHITE);
     version (DBG_PRINT_PATH)
         DBG_PRINT_PATH(file, line);
 
-    print_str("[ERRO] ");
-
+    set_color(RESET);
     writef_impl(fmt, args);
 
     print_char('\n');
@@ -257,7 +267,12 @@ void DBG_PRINT_PATH(string file, int line)
     {
         for (auto i = fp.length-1; i > 0; i--)
         {
-            if (file[i] == '/')
+            version (Windows)
+                char sep = '\\';
+            else
+                char sep = '/';
+            
+            if (file[i] == sep)
             {
                 fp = fp[i+1 .. $];
                 break;
@@ -345,4 +360,42 @@ float benchmark(const(char)[] tag, scope void delegate() f)
     auto ms = sw.elapsed.msecs;
     LINFO("Function: {} took: {} msecs", tag, ms);
     return ms;
+}
+
+version(Windows)
+{
+    enum RESET   = 7;
+    enum RED     = 12;
+    enum GREEN   = 2;
+    enum YELLOW  = 14;
+    enum BLUE    = 1;
+    enum PINK    = 5;
+    enum CYAN    = 3;
+    enum WHITE   = 15;
+
+    void set_color(short color)
+    {
+        import core.sys.windows.winbase;
+        import core.sys.windows.wincon;
+        auto hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+        SetConsoleTextAttribute(hConsole, color);
+    }
+}
+else
+{
+    enum RESET = "\033[0m";
+    enum RED = "\033[1;31m";
+    enum GREEN = "\033[1;32m";
+    enum YELLOW = "\033[1;33m";
+    enum BLUE = "\033[1;34m";
+    enum PINK = "\033[1;35m";
+    enum CYAN = "\033[1;36m";
+    enum WHITE = "\033[1;37m";
+    
+    void set_color(const(char)* color)
+    {
+        version(Posix)
+            printf(color);
+    }
 }
