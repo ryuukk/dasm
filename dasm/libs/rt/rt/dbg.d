@@ -82,7 +82,7 @@ void LINFO(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line =
 }
 void LWARN(Char, A...)(in Char[] fmt, A args, string file = __FILE__, int line = __LINE__)
 {
-    set_color(RED);
+    set_color(YELLOW);
     print_str("[WARN] ");
 
     version (DBG_PRINT_PATH)
