@@ -542,7 +542,6 @@ struct VertexAttribute
         ret.num_components = 1;
         ret.aliass = "a_texIndex";
         ret.gl_type = GL_FLOAT;
-        ret.unit = 0;
         ret._usage_index = number_of_trailing_zeros(VertexUsage.TEXTURE_INDEX);
         return ret;
     }
@@ -628,7 +627,7 @@ struct VertexBuffer
             {
                 // TODO: better log this
                 // happens when a_ not used in shader
-                // LWARN("no va for: {}", attr.aliass.ptr);
+                LWARN("no va for: {}", attr.aliass.ptr);
                 continue;
             }
 

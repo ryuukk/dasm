@@ -225,19 +225,6 @@ struct SpriteBatch
 
         float fint = color.to_float_bits();
 
-
-        /+ 
-            0           1
-
-
-
-                        3
-
-
-
-        +/
-
-
         int idx = _idx;
         _vertices[idx + 0] = x;
         _vertices[idx + 1] = y;

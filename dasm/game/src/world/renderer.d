@@ -53,6 +53,17 @@ struct EntityRenderer
         LINFO("entity renderer created");
     }
 
+    void dispose()
+    {
+        no_tex.dispose();
+        renderables.dispose();
+        pool.dispose();
+        foreach(EntityShader*it; shaders)
+        {
+            it.dispose();
+        }
+    }
+
     EntityShader* get_shader(Renderable* renderable)
     {   
         if(renderable.shader)
@@ -204,6 +215,20 @@ struct EntityRenderer
         renderable.shader = get_shader(renderable);
     }
 
+    Renderable* next()
+    {
+        
+        int index = used++;
+        assert(pool.length > index, "pool is full");
+        
+        Renderable* renderable = &pool[index];
+        renderables.add(renderable);
+        renderable.bones = null;
+        renderable.material = null;
+
+        return renderable;
+    }
+
     v3 get_translation(ref mat4 worldTransform, ref v3 center) 
     {
         if (center.is_zero())
@@ -237,6 +262,8 @@ struct EntityRenderer
                 if (current != null)
                     current.end();
 
+                assert(renderable.shader, "can't render a renderable without a shader");
+                
                 current = renderable.shader;
 
                 current.begin(camera);
@@ -305,6 +332,11 @@ struct EntityShader
         if (renderable.material)
             attributes_mask = renderable.material.getMask();
         debug check_gl_error();
+    }
+
+    void dispose()
+    {
+        program.dispose();
     }
 
     void init()

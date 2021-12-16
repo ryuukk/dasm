@@ -11,7 +11,7 @@ dub build -c wasm --compiler=ldc2 --arch=wasm32-unknown-unknown-wasm -b $BUILD
 
 cd ../..
 
-if [[ $OPT == true ]]; then
+if [[ $OPT == true && $BUILD == release ]]; then
     echo "Optimizing wasm file for size.."
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         wasm-opt -Oz -o bin/game.wasm bin/game.wasm

@@ -433,10 +433,9 @@ version (WASM)
     {
        Key k = js_to_key(key);
 
-       engine.input.pressed_keys -= 1;
-    //    engine.input.keys_down[k] = false;
-
-       engine.queue.key_up(k);
+        engine.input.pressed_keys -= 1;
+        engine.input.keys_down[k] = false;
+        engine.queue.key_up(k);
     }
 
     export extern(C) void on_key_press(int codepoint)
@@ -631,21 +630,24 @@ private // INPUT callbacks
         switch (action)
         {
         case GLFW_PRESS:
-            auto convertedKey = glfw_to_keycode(key);
-            self.queue.key_down(convertedKey);
+            auto k = glfw_to_keycode(key);
+            self.queue.key_down(k);
             self.input.pressed_keys += 1;
             self.input.key_just_pressed = true;
-            self.input.just_pressed_keys[convertedKey] = true;
+            self.input.just_pressed_keys[k] = true;
             self.input.last_character = 0;
-            //auto character = keycode_to_char(convertedKey);
+
+            engine.input.keys_down[k] = true;
+            //auto character = keycode_to_char(k);
             //if (character != 0)
             //    on_char_cb(window, cast(uint) character);
             break;
 
         case GLFW_RELEASE:
-            auto convertedKey = glfw_to_keycode(key);
+            auto k = glfw_to_keycode(key);
             self.input.pressed_keys -= 1;
-            self.queue.key_up(convertedKey);
+            self.input.keys_down[k] = false;
+            self.queue.key_up(k);
             break;
 
         case GLFW_REPEAT:

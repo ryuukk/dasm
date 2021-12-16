@@ -108,7 +108,9 @@ void on_exit(Engine* e)
 
 void on_tick(Engine* e, float dt)
 {
-    
+    glClearColor(0.2, 0.4, 0.8, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     if (ctx.curr_state == StateID.NONE && ctx.next_state == StateID.NONE)
     {
         set_state(StateID.SPLASH);

@@ -190,7 +190,7 @@
                     GLlastError = 0;
                     return e;
                 }
-                return GLctx.getError();
+                return MOD.WGL.getError();
             };
             imports.glEnable = function(x0) { MOD.WGL.enable(x0); };
             imports.glDisable = function(x0) { MOD.WGL.disable(x0); };
@@ -632,7 +632,19 @@
                 if (pixels) pixelData = webGLGetTexPixelData(type, format, width, height, pixels, internalFormat);
                 MOD.WGL.texImage2D(target, level, internalFormat, width, height, border, format, type, pixelData);
             };
+			imports.glTexImage3D = (target, level, internalformat, width, height, depth, border, format, type, data) => {
+                var pixelData = null;
+                if (data) pixelData = webGLGetTexPixelData(type, format, width, height, data, internalformat);
+                MOD.WGL.texImage3D(target, level, internalformat, width, height, depth, border, format, type, pixelData);
+			};
+            imports.glTexSubImage3D = (target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, data) => {
+                var pixelData = null;
+                if (data) pixelData = webGLGetTexPixelData(type, format, width, height, data, 0);
 
+                //   gl.texSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, GLintptr offset);
+
+				MOD.WGL.texSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixelData);
+			},
             imports.glTexParameteri = function(x0, x1, x2)
             {
                 MOD.WGL.texParameteri(x0, x1, x2);

@@ -6,6 +6,7 @@ import rt.collections.hashmap;
 import rt.dbg;
 import rt.memz;
 import rt.math;
+import rt.filesystem;
 
 import dawn.gfx;
 import dawn.ecs;
@@ -16,7 +17,10 @@ import dawn.texture;
 import dawn.model;
 import dawn.ecs;
 
+import world.tiles;
 import world.renderer;
+
+import tiles_bank = defs.tile_def;
 
 // TODO: i don't like this
 bool fs_loaded;
@@ -28,215 +32,83 @@ bool vs_load_error;
 char[] fs;
 char[] vs;
 
-
-struct Tile
+struct UV
 {
-    int x;
-    int y;
-    int type;
-    int entity_id;
-    bool no_walk;
+    float x; float y;
 }
-
-enum CHUNK_SIZE = 128;
-enum TILE_SIZE  = 1;
-struct Chunk
+enum _uv(int x, int y)
 {
-    enum NUM_VERTICES = 9;
-
-    int chunkX;
-    int chunkY;
-    int worldX;
-    int worldY;
-
-    Mesh mesh;
-    Material mat;
-    bool dirty;
-    float[] _vertices;
-    int[] _indicies;
-    int numVertices;
-    Map* map;
-
-    mat4 transform;
-
-    void create(Map* map, int chunkX, int chunkY)
-    {
-        this.map = map;
-        this.chunkX = chunkX;
-        this.chunkY = chunkY;
-
-        worldX = chunkX * CHUNK_SIZE * TILE_SIZE;
-        worldY = chunkY * CHUNK_SIZE * TILE_SIZE;
-
-        auto tiles = CHUNK_SIZE * CHUNK_SIZE;
-        auto vertCount  = CHUNK_SIZE * CHUNK_SIZE * 4;
-        auto indexCount = CHUNK_SIZE * CHUNK_SIZE * 6;
-        numVertices = vertCount;
-
-        _vertices = engine.allocator.alloc_array!float(vertCount * NUM_VERTICES);
-        _indicies = engine.allocator.alloc_array!int(indexCount);
-
-
-        int vOffset = 0;
-        int iOffset = 0;
-
-        for (int i = 0; i < tiles; i++)
-        {
-            _indicies[iOffset + 0] = (2 + vOffset);
-            _indicies[iOffset + 1] = (0 + vOffset);
-            _indicies[iOffset + 2] = (1 + vOffset);
-            
-            _indicies[iOffset + 3] = (1 + vOffset);
-            _indicies[iOffset + 4] = (3 + vOffset);
-            _indicies[iOffset + 5] = (2 + vOffset);
-
-            vOffset += 4;
-            iOffset += 6;
-        }
-        for (int x = 0; x < CHUNK_SIZE; x++)
-        {
-            for (int y = 0; y < CHUNK_SIZE; y++)
-            {
-                set_height(x, y, 0.0);
-            }                
-        }
-        VertexAttributes attrs;
-        attrs.add(VertexAttribute.position3D());
-        attrs.add(VertexAttribute.normal());
-        attrs.add(VertexAttribute.tex_coords(0));
-        attrs.add(VertexAttribute.tex_index());
-        mesh.create(false, vertCount, indexCount, attrs);
-
-        mesh.vb.set_data(_vertices, 0, cast(int) _vertices.length);
-        mesh.ib.set_data(_indicies, 0, cast(int) _indicies.length);
-
-        transform = mat4.createTranslation(worldX,0, worldY);
-    }
-
-    void dispose()
-    {
-        mesh.dispose();
-    }
-
-    void set_height(int x, int y, float height)
-    {
-        dirty = true;
-        int index = (x + y * CHUNK_SIZE) * 4 * NUM_VERTICES;
-        int wx = x * TILE_SIZE;
-        int wy = y * TILE_SIZE;
-        int ts = TILE_SIZE;
-        
-        int acc = 0;
-        // 1
-        {
-            // pos
-            _vertices[index + acc++] = wx;
-            _vertices[index + acc++] = height;
-            _vertices[index + acc++] = wy;
-            // normal
-            _vertices[index + acc++] = 0f;
-            _vertices[index + acc++] = 1f;
-            _vertices[index + acc++] = 0f;
-            //uv
-            acc++;
-            acc++;
-            //texIndex
-            acc++;
-        }
-        // 2
-        {
-            // pos
-            _vertices[index + acc++] = wx + ts;
-            _vertices[index + acc++] = height;
-            _vertices[index + acc++] = wy;
-            // normal
-            _vertices[index + acc++] = 0f;
-            _vertices[index + acc++] = 1f;
-            _vertices[index + acc++] = 0f;
-            //uv
-            acc++;
-            acc++;
-            //texIndex
-            acc++;
-        }
-        // 3
-        {
-            // pos
-            _vertices[index + acc++] = wx;
-            _vertices[index + acc++] = height;
-            _vertices[index + acc++] = wy+ts;
-            // normal
-            _vertices[index + acc++] = 0f;
-            _vertices[index + acc++] = 1f;
-            _vertices[index + acc++] = 0f;
-            //uv
-            acc++;
-            acc++;
-            //texIndex
-            acc++;
-        }
-        // 4
-        {
-            // pos
-            _vertices[index + acc++] = wx+ts;
-            _vertices[index + acc++] = height;
-            _vertices[index + acc++] = wy+ts;
-            // normal
-            _vertices[index + acc++] = 0f;
-            _vertices[index + acc++] = 1f;
-            _vertices[index + acc++] = 0f;
-            //uv
-            acc++;
-            acc++;
-            //texIndex
-            acc++;
-        }
-    }
-
-
-
-    int getTileIndex(int x, int y)
-    {
-        return (x + y * CHUNK_SIZE) * 4 * NUM_VERTICES;
-    }
-
-    void upload()
-    {
-        mesh.vb.set_data(_vertices, 0, cast(int) _vertices.length);
-    }
+    UV ret = void;
+    ret.x = x / 112.0;
+    ret.y = y / 48.0;
+    return ret;
 }
+UV[] autotile_uvs = [
+    _uv(0,0), _uv(1,0), _uv(2,0),_uv(3,0),_uv(4,0),_uv(5,0),_uv(6,0), 
+    _uv(0,1), _uv(1,1), _uv(2,1),_uv(3,1),_uv(4,1),_uv(5,1),_uv(6,1), 
+    _uv(0,2), _uv(1,2), _uv(2,2),_uv(3,2),_uv(4,2),_uv(5,2),_uv(6,2), 
+];
 
-struct TileInfo
+float cam_pos_h = 8.16;
+float cam_pos_d = 5.12;
+
+struct TexArrayBufferAsset
 {
-    int start_index;
-    int length;
+    import dawn.image;
+    Resource base;
+
+    int targetDepth;
+    bool added;
+
+    IFImage img;
+    
+    void create(char[256] path, ResourceCache* cache)
+    {
+        base.create(path, cache);
+        base.vt_load = &load;
+        base.vt_unload = &unload;
+    }
+
+    void unload(Resource* resource)
+    {
+        img.free();
+    }
+
+    bool load(uint size, const(ubyte)* buffer)
+    {
+        img = read_image(buffer[0 .. size]);
+        if (img.e)
+        {
+            LERRO("decode error: {} file: {}", IF_ERROR[img.e], base.path);
+            return false;
+        }
+        return true;
+    }
 }
 
 struct Map
 {
     Tile[] tiles;
+    Chunk[] chunks;
+    bool[] collision;
     int width;
     int height;
+    int num_chunks_x;
+    int num_chunks_y;
 
     Registry registry;
 
-    Mesh mesh;
     ShaderProgram program;
+    Material material;
     Texture2D texture;
-    ubyte[] pixel_buffer;
+    ubyte[] debug_tex_buffer = cast(ubyte[]) import("res/textures/tileset/debug.png");
 
     ModelAsset* model;
-    ModelInstance instance;
-    AnimationController controller;
-
     EntityRenderer entity_renderer;
 
     float test_rotation = 0;
 
     Mesh cube_mesh;
-
-    float[] vertices;
-    
 
     // net state
     entity_t player;
@@ -253,38 +125,54 @@ struct Map
     char[12] host = "127.0.0.1";
     ushort port = 7979;
 
+    HashMap!(int, int) tile_type_to_tex_depth;
+    HashMap!(int, TexArrayBufferAsset*) loaded_texs;
+    int next_texture_depth = 0;
+
     void create(int width, int height)
     {
+        tiles_bank.initialize(engine.allocator);
+        tile_type_to_tex_depth.create(engine.allocator);
+        loaded_texs.create(engine.allocator);
         this.width = width;
         this.height = height;
 
-        registry.create(engine.allocator);
+        tiles = engine.allocator.alloc_array!(Tile)(width * height);
+        collision = engine.allocator.alloc_array!(bool)(width * height);
+
+        tiles[] = Tile.init;
+        collision[] = false;
+        
+        num_chunks_x = width < CHUNK_SIZE ? 1 : width / CHUNK_SIZE;
+        num_chunks_y = height < CHUNK_SIZE ? 1 : height / CHUNK_SIZE;
+        chunks = engine.allocator.alloc_array!(Chunk)(num_chunks_x * num_chunks_y);
+        chunks[] = Chunk.init;
+
+        for (int i = 0; i < chunks.length; i++)
+        {
+            int x = i % num_chunks_x;
+            int y = i / num_chunks_x;
+            chunks[i].create(&this, x, y);
+
+            LINFO("create chunk at {}:{} {}", x, y, chunks[i].mesh.autobind);
+        }
         
 
-        int numVertices = (width * height) * ( (3 + 3 + 2) * 16 );
+        LINFO("created map of size: {}:{} chunks: {}:{}", width, height, num_chunks_x, num_chunks_y);
 
-        VertexAttributes attrs;
-        attrs.add(VertexAttribute.position3D());
-        attrs.add(VertexAttribute.normal());
-        attrs.add(VertexAttribute.tex_coords(0));
 
-        mesh.create(false, numVertices, 0, attrs);
+        registry.create(engine.allocator);
+        
+        // create dbg tex
+        import dawn.image: read_image;
+        auto im = read_image(debug_tex_buffer, 4);
+        scope(exit) im.free();
 
-        vertices = engine.allocator.alloc_array!float(numVertices);
-        mesh.vb.set_data(vertices, 0, cast(int)vertices.length);
 
-        // create tmp tex
-        pixel_buffer = engine.allocator.alloc_array!ubyte(2048 * 2048 * 4);
-        for (int x = 0; x < 2048; x++)
-        for (int y = 0; y < 2048; y++)
-        {
-            int index = x + y * 2048;
-            pixel_buffer[index + 0] = cast(ubyte)rand_range(0, 255);
-            pixel_buffer[index + 1] = cast(ubyte)rand_range(0, 255);
-            pixel_buffer[index + 2] = cast(ubyte)rand_range(0, 255);
-            pixel_buffer[index + 3] = 255;
-        }
-        texture = create_texture(2048, 2018, pixel_buffer.ptr);
+        // size = 112:48
+        texture = create_texture_array(112, 48, 256);
+        add_texture(&texture, 0, im.buf8.ptr);
+        debug check_gl_error();
 
         create_cube_mesh(&cube_mesh);
 
@@ -295,7 +183,7 @@ struct Map
 
 
         create_player();
-        create_cubes();
+        // create_cubes();
     }
 
     void reload_shader()
@@ -331,19 +219,25 @@ struct Map
     void dispose()
     {
         registry.dispose();
-
         engine.allocator.free(tiles.ptr);
-
-        engine.allocator.free(pixel_buffer.ptr);
         program.dispose();
         texture.dispose();
-        mesh.dispose();
+        cube_mesh.dispose();
+
+        foreach(pair; loaded_texs)
+        {
+            pair.value.base.decrement_ref_count();
+        }
+        loaded_texs.clear();
+        tile_type_to_tex_depth.clear();
+
+        entity_renderer.dispose();
     }
 
     int lastt;
     void tick(int time, int dt)
     {
-        if (time - lastt > 1000)
+        if (time - lastt > 5000)
         {
             LINFO("FPS: {}  {}", engine.fps, engine.tick_time);
             lastt = time;
@@ -355,11 +249,26 @@ struct Map
             reload_shader();
         }
 
+        if (engine.input.is_key_just_pressed(Key.KEY_F))
+        {
+            static int type = 0;
+            scope(exit) type++;
+            if (type >= tiles_bank.tile_defs.length) type = 0;
+            
+            LINFO("fill map with index: {}", type);
+            
+            for (int x = 0; x < width; x++)
+            for (int y = 0; y < height; y++)
+            {
+                set_tile(x, y, type);
+            }
+        }
+
         if (vs_loaded && fs_loaded)
         {
 
             ShaderProgram newp;
-            newp.compile_shaders(vs, fs);
+            newp.create(vs, fs);
             if (newp.is_compiled)
             {
                 if (program.is_compiled)
@@ -384,65 +293,131 @@ struct Map
             vs_loaded = false;
         }
 
-        if (!instance.model && model.base.is_ready())
+        foreach(pair; loaded_texs)
         {
-            instance.load(&model.mdl, engine.allocator);
-            controller.target = &instance;
+            if (pair.value.base.is_ready() && !pair.value.added)
+            {
+                pair.value.added = true;
+                
+                add_texture(&texture, pair.value.targetDepth, pair.value.img.buf8.ptr);
+            }
         }
-
-        if (!program.is_compiled)
-            return;
-
-        auto camera = &engine.renderer.camera;
-
-        // program.bind();
-        // // program.set_uniformf("u_time", now().seconds());
-        // program.set_uniform_mat4("u_projViewTrans", camera.combined);
-        // program.set_uniform_mat4("u_worldTrans", mat4.identity());
-        // program.set_uniform4f("u_cameraPosition", camera.position.x, camera.position.y, camera.position.z, 1.1001f / (camera.far * camera.far));
-
-        // texture.bind();
-        // program.set_uniformi("u_diffuseTexture", 0);
-        // program.set_uniform4f("u_diffuseUVTransform", 0, 0, 1, 1);
-
 
         test_rotation += (dt / 1000.0);
 
-        // engine.renderer.state.set_depth_state(DepthState.Default);
+        system_input(&this, time, dt);
+        system_movement(&this, time, dt);
+        system_camera(&this, time, dt);
 
-        // if (instance.model)
-        // {
-        //     instance.transform =
-        //     mat4.set(v3(0,0,0), quat.fromAxis(1,0,0, PIDIV2)) *
-        //      mat4.set(v3(0, 0 ,0), quat.fromAxis(0, 0, 1, test_rotation), v3(1,1,1));
+        system_render_map(&this, time, dt);
+        system_render(&this, time, dt);
 
-        //     Animation* anim = &instance.animations[4];
-        //     controller.animate(anim.id);
-        //     controller.update((dt / 1000.0));
-        //     instance.calculate_transforms();
-        //     entity_renderer.render(&instance);
-        // }
+        system_load_model(&this, time, dt);
+    }
 
-        // enum SIZE = 6;
-        // for (int x = -SIZE;  x < SIZE; x++)
-        // for (int y = -SIZE;  y < SIZE; y++)
-        // {
-        //     mat4 t = mat4.set(v3(x * 2, -1, y * 2) + v3(1,0,1), quat.fromAxis(0,1,0, test_rotation), v3(1.75,1,1.75));
-        //     entity_renderer.render(&cube_mesh, t);
-        // }
+    void set_tile(int x, int y, int type)
+    {
+        auto tile = get_tile(x, y);
+        if (!tile) return;
 
-        // entity_renderer.flush(&engine.renderer.camera);
+        tile.type = type;
 
+        // TODO: the plan
+        //  - get tile def
+        //  - get texture asset
+        //  - get textureIndex
+        //  - update auto tiling
 
-        system_input(time, dt);
-        system_movement(time, dt);
+        int texIndex = 0;
+        if (tile_type_to_tex_depth.has(type))
+        {
+            texIndex = tile_type_to_tex_depth[type];
+        }
+        else 
+        {
+            // TODO: handle errors
+            
+            if (loaded_texs.has(type))
+            {
+                auto asset = loaded_texs[type];
+                texIndex = asset.targetDepth;
+            }
+            else
+            {
+                auto data = tiles_bank.defs[type];
+                
+                texIndex = next_texture_depth;
 
+                next_texture_depth++;
+                auto targetDepth = texIndex;
+                auto asset = engine.cache.load!(TexArrayBufferAsset)(data.texture);
+                asset.targetDepth = targetDepth;
+                loaded_texs.set(type, asset);
+            }
+        }
+        
 
-        system_render_map(time, dt);
-        system_render(time, dt);
+        auto chunk = get_chunk(x, y);
+        
+        int localX = cast(int) (x % cast(float)CHUNK_SIZE);
+        int localY = cast(int) (y % cast(float)CHUNK_SIZE);
 
+        auto sizeX = 16.0 / 112.0;
+        auto sizeY = 16.0 / 48.0;
+        
+        chunk.set(localX, localY, texIndex, sizeX, sizeY, sizeX*2, sizeY*2);
+    }
 
-        system_load_model(time, dt);
+    Chunk* get_chunk(int x, int y)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return null;
+
+        int chunkPosX = cast(int) (num_chunks_x * (x / cast(float) width));
+        int chunkPosY = cast(int) (num_chunks_y * (y / cast(float) height));
+
+        int i = chunkPosX + chunkPosY * num_chunks_x;
+        return &chunks[i];
+    }
+
+    Tile* get_tile(int x, int y)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return null;
+
+        int i = x + y * width;
+        return &tiles[i];
+    }
+
+    bool update_auto_tile(Tile* tile, int x, int y, int type)
+    {
+        bool match(int x, int y, int type)
+        {
+            auto t = get_tile(x, y);
+            if (!t) return false;
+            
+            return tile.type == type;
+        }
+        // TODO: i had to swap top and bottom for UV, i must know what's going on really
+        // AUTOTILE 4 BITS
+        ubyte top    = match(x, y + 1, type);
+        ubyte left   = match(x - 1, y, type);
+        ubyte right  = match(x + 1, y, type);
+        ubyte bottom = match(x, y - 1, type);
+        int id     = top + 2 * left + 4 * right + 8 * bottom;
+        if (tile.autotile_id != id)
+        {
+            tile.autotile_id = id;
+            return true;
+        }
+        return false;
+    }
+
+    bool isInside(int x, int y)
+    {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return false;
+        return true;
     }
 
     void create_player()
@@ -470,206 +445,250 @@ struct Map
         }
         LINFO("added: {} cubes", count);
     }
+}
 
-
-    void system_input(int time, int dt)
+void system_input(Map* map, int time, int dt)
+{
+    auto registry = &map.registry;
+    foreach(view, e; registry.view!(Includes!(FControllable, CPlayer, CVelocity, CModel)))
     {
-        foreach(view, e; registry.view!(Includes!(FControllable, CPlayer, CVelocity, CModel)))
-        {
-            auto player = view.get!(CPlayer)(e);
-            auto vel = view.get!(CVelocity)(e);
-            auto mdl = view.get!(CModel)(e);
+        auto player = view.get!(CPlayer)(e);
+        auto vel = view.get!(CVelocity)(e);
+        auto mdl = view.get!(CModel)(e);
 
-            // update key state
-            foreach(Event* e; engine.queue)
+        // update key state
+        foreach(Event* e; engine.queue)
+        {
+            switch (e.type) with (EventType)
             {
-                switch (e.type) with (EventType)
+                case INPUT_KEY_DOWN:
+                    if (e.key_down.key == Key.KEY_W)
+                        player.up = true;
+                    else if (e.key_down.key == Key.KEY_A)
+                        player.left = true;
+                    else if (e.key_down.key == Key.KEY_S)
+                        player.down = true;
+                    else if (e.key_down.key == Key.KEY_D)
+                        player.right = true;
+                break;
+                case INPUT_KEY_UP:
+                    if (e.key_up.key == Key.KEY_W)
+                        player.up = false;
+                    else if (e.key_up.key == Key.KEY_A)
+                        player.left = false;
+                    else if (e.key_up.key == Key.KEY_S)
+                        player.down = false;
+                    else if (e.key_up.key == Key.KEY_D)
+                        player.right = false;
+                break;
+                default:break;
+            }
+        }
+
+        // apply to velocity
+        bool moved = (player.up || player.down || player.right || player.left);
+        if (moved)
+        {
+            vel.value.x =  (player.right ? 1 : 0) - (player.left ? 1 : 0);
+            vel.value.y = (player.down ? 1 : 0) - (player.up ? 1 : 0);
+            
+            if (mdl.ctrl.target && !mdl.ctrl.animate("Armature|run_00"))
+                LERRO("can't find animation idle");
+        }
+        else
+        {
+            vel.value = v2(0,0);
+
+            if (mdl.ctrl.target && !mdl.ctrl.animate("Armature|idle_1h"))
+                LERRO("can't find animation idle");
+        }
+    }
+}
+
+void system_movement(Map* map, int time, int dt)
+{
+    auto registry = &map.registry;
+    foreach(view, e; registry.view!(Includes!(CTransform, CVelocity, CNetworked)))
+    {
+        auto trs = view.get!(CTransform)(e);
+        auto vel = view.get!(CVelocity)(e);
+        auto net = view.get!(CNetworked)(e);
+        auto is_player = registry.has!(CPlayer)(e);
+        auto is_controlled = registry.has!(FControllable)(e);
+
+        // if it's us, just do it            
+        if (is_player && is_controlled)
+        {
+            v2 dt_vel = vel.value * (dt/1000.0) * 0.4 * 10;
+            trs.pos += v3( dt_vel.x, 0, dt_vel.y);
+
+            bool moving = !(dt_vel.x == 0 && dt_vel.y == 0);
+            if (moving)
+                trs.rot = -atan2f(vel.value.x, vel.value.y);
+        }
+        else // otherwise, apply interpolation
+        { 
+            // TODO: use last time?
+            auto tickDT = time - net.last_tick_frame_time;
+            bool moving = !(vel.value.x == 0 && vel.value.y == 0);
+            if (moving)
+            {
+                trs.rot = -atan2f(vel.value.x, vel.value.y);
+
+                if(net.last_tick_id < map.last_tick_id)
                 {
-                    case INPUT_KEY_DOWN:
-                        if (e.key_down.key == Key.KEY_W)
-                            player.up = true;
-                        else if (e.key_down.key == Key.KEY_A)
-                            player.left = true;
-                        else if (e.key_down.key == Key.KEY_S)
-                            player.down = true;
-                        else if (e.key_down.key == Key.KEY_D)
-                            player.right = true;
-                    break;
-                    case INPUT_KEY_UP:
-                        if (e.key_up.key == Key.KEY_W)
-                            player.up = false;
-                        else if (e.key_up.key == Key.KEY_A)
-                            player.left = false;
-                        else if (e.key_up.key == Key.KEY_S)
-                            player.down = false;
-                        else if (e.key_up.key == Key.KEY_D)
-                            player.right = false;
-                    break;
-                    default:break;
+                    LINFO("skip: {} {}", net.last_tick_id, map.last_tick_id);
+                    vel.value = v2(0,0);
+                    trs.pos = v3( net.tick_pos.x, 0, net.tick_pos.y );
+                    // trs.rotation = net.tick_rot;
+                }
+                else
+                {
+                    v2 newp = net.pos_at_tick + (vel.value * tickDT);
+                    trs.pos = v3(newp.x, 0, newp.y);
+                    //trans.position = Vec3.lerp(net.pos_at_tick, net.tick_pos, last_tick_time);
+
+                    // trs.rotation = net.rot_at_tick + (vel.r * tickDT);
+                    //trans.rotation = lerp_deg(net.rot_at_tick, net.tick_rot, last_tick_time);
                 }
             }
-
-            // apply to velocity
-            bool moved = (player.up || player.down || player.right || player.left);
-            if (moved)
-            {
-                vel.value.x =  (player.right ? 1 : 0) - (player.left ? 1 : 0);
-                vel.value.y = (player.down ? 1 : 0) - (player.up ? 1 : 0);
-                
-                if (mdl.ctrl.target && !mdl.ctrl.animate("Armature|run_00"))
-                    LERRO("can't find animation idle");
-            }
-            else
-            {
-                vel.value = v2(0,0);
-
-                if (mdl.ctrl.target && !mdl.ctrl.animate("Armature|idle_1h"))
-                    LERRO("can't find animation idle");
-            }
         }
     }
-    
-    void system_movement(int time, int dt)
+}
+
+void system_camera(Map* map, int time, int dt)
+{
+    auto registry = &map.registry;
+    foreach(view, e; registry.view!(Includes!(FControllable, CTransform)))
     {
-        foreach(view, e; registry.view!(Includes!(CTransform, CVelocity, CNetworked)))
-        {
-            auto trs = view.get!(CTransform)(e);
-            auto vel = view.get!(CVelocity)(e);
-            auto net = view.get!(CNetworked)(e);
-            auto is_player = registry.has!(CPlayer)(e);
-            auto is_controlled = registry.has!(FControllable)(e);
-
-            // if it's us, just do it            
-            if (is_player && is_controlled)
-            {
-                v2 dt_vel = vel.value * (dt/1000.0) * 0.4 * 10;
-                trs.pos += v3( dt_vel.x, 0, dt_vel.y);
-
-                bool moving = !(dt_vel.x == 0 && dt_vel.y == 0);
-                if (moving)
-                    trs.rot = -atan2f(vel.value.x, vel.value.y);
-            }
-            else // otherwise, apply interpolation
-            { 
-                // TODO: use last time?
-                auto tickDT = time - net.last_tick_frame_time;
-                bool moving = !(vel.value.x == 0 && vel.value.y == 0);
-                if (moving)
-                {
-                    trs.rot = -atan2f(vel.value.x, vel.value.y);
-
-                    if(net.last_tick_id < last_tick_id)
-                    {
-                        LINFO("skip: {} {}", net.last_tick_id, last_tick_id);
-                        vel.value = v2(0,0);
-                        trs.pos = v3( net.tick_pos.x, 0, net.tick_pos.y );
-                        // trs.rotation = net.tick_rot;
-                    }
-                    else
-                    {
-                        v2 newp = net.pos_at_tick + (vel.value * tickDT);
-                        trs.pos = v3(newp.x, 0, newp.y);
-                        //trans.position = Vec3.lerp(net.pos_at_tick, net.tick_pos, last_tick_time);
-
-                        // trs.rotation = net.rot_at_tick + (vel.r * tickDT);
-                        //trans.rotation = lerp_deg(net.rot_at_tick, net.tick_rot, last_tick_time);
-                    }
-                }
-            }
-        }
-    }
-
-    void system_load_model(int time, int dt)
-    {
-        foreach (view, e; registry.view!(Includes!(CTransform, CLoadModel)))
-        {
-            CTransform* tr = view.get!(CTransform)(e);
-            CLoadModel* lm = view.get!(CLoadModel)(e);
-
-            if (lm.mdl.base.is_ready())
-            {
-                ModelAsset* model_asset = lm.mdl;
-
-                CModel model;
-                model.instance.load(&model_asset.mdl, engine.allocator);
-                model.instance.transform = mat4.set(
-                  tr.pos,
-                  quat.fromAxis(0,1,0, tr.rot),
-                  v3(tr.scale, tr.scale, tr.scale)  
-                );
-                model.instance.calculate_transforms();
-
-
-                registry.add(e, model);
-
-                registry.remove!(CLoadModel)(e);
-
-                LINFO("Loaded new model for: {}", e);
-            }
-        }
-    }
-
-    void system_render_map(int time, int dt)
-    {
-        if (program.is_compiled == false) return;
+        auto trs = view.get!(CTransform)(e);
         auto camera = &engine.renderer.camera;
-        program.bind();   
+
+        camera.position.x = trs.pos.x;
+        camera.position.y = trs.pos.y + cam_pos_h;
+        camera.position.z = trs.pos.z + cam_pos_d;
+        camera.update();
+    }
+}
+
+void system_load_model(Map* map, int time, int dt)
+{
+    auto registry = &map.registry;
+    foreach (view, e; registry.view!(Includes!(CTransform, CLoadModel)))
+    {
+        CTransform* tr = view.get!(CTransform)(e);
+        CLoadModel* lm = view.get!(CLoadModel)(e);
+
+        if (lm.mdl.base.is_ready())
+        {
+            ModelAsset* model_asset = lm.mdl;
+
+            CModel model;
+            model.instance.load(&model_asset.mdl, engine.allocator);
+            model.instance.transform = mat4.set(
+                tr.pos,
+                quat.fromAxis(0,1,0, tr.rot),
+                v3(tr.scale, tr.scale, tr.scale)  
+            );
+            model.instance.calculate_transforms();
+
+
+            registry.add(e, model);
+
+            registry.remove!(CLoadModel)(e);
+
+            LINFO("Loaded new model for: {}", e);
+        }
+    }
+}
+
+void system_render_map(Map* map, int time, int dt)
+{
+    if (map.program.is_compiled == false) return;
+
+    import dawn.gl;
+    import rt.str;
+
+    auto chunks = map.chunks;
+    auto program = &map.program;
+    auto texture = &map.texture;
+
+    for (int i = 0; i < chunks.length; i++)
+    {
+        auto chunk = &chunks[i];
+        if (chunk.dirty)
+        {
+            LINFO("reupload dirty chunk at {}:{}", chunk.chunkX, chunk.chunkY);
+            chunk.upload();
+            chunk.dirty = false;
+        }
+
+
+        engine.renderer.state.set_polygon_state(PolygonState.None);
+        auto camera = &engine.renderer.camera;
+        program.bind();
         // program.set_uniformf("u_time", now().seconds());
         program.set_uniform_mat4("u_projViewTrans", camera.combined);
-        program.set_uniform_mat4("u_worldTrans", mat4.identity());
+        program.set_uniform_mat4("u_worldTrans", chunk.transform);
         program.set_uniform4f("u_cameraPosition", camera.position.x, camera.position.y, camera.position.z, 1.1001f / (camera.far * camera.far));
+
+    
         program.set_uniform4f("u_fogColor", 0,0,0,1);
 
         texture.bind();
         program.set_uniformi("u_diffuseTexture", 0);
         program.set_uniform4f("u_diffuseUVTransform", 0, 0, 1, 1);
 
-        import dawn.gl;
-        // mesh.render(&program, GL_TRIANGLES);
 
+        assert(chunk.mesh.autobind);
+
+        chunk.mesh.render(program, GL_TRIANGLES);
         debug check_gl_error();
-    }
-
-    void system_render(int time, int dt)
-    {
-        engine.renderer.state.set_depth_state(DepthState.Default);
-
-        foreach (it, e; registry.view!(Includes!(CTransform, CModel)))
-        {
-            auto trans = it.get!(CTransform)(e);
-            auto mdl = it.get!(CModel)(e);
-            if (mdl.ctrl.target == null)
-                mdl.ctrl.target = &mdl.instance;
-
-            mdl.ctrl.update(dt/1000.0);
-
-            // fix rotation because model is broken
-            auto rot = quat.mult(quat.fromAxis(1,0,0, PIDIV2),  quat.fromAxis(0,0,1, trans.rot));
-            
-            mdl.instance.transform = mat4.set(trans.pos, rot, v3(trans.scale, trans.scale, trans.scale));
-            entity_renderer.render(&mdl.instance);
-        }
-        
-        foreach (it, e; registry.view!(Includes!(CTransform, CCube)))
-        {
-            auto trans = it.get!(CTransform)(e);
-            auto cube = it.get!(CCube)(e);
-
-
-            trans.rot += (dt / 1000.0);
-
-            entity_renderer.render(&cube_mesh, 
-                mat4.set(
-                    trans.pos,
-                    quat.fromAxis(0,1,0, trans.rot),
-                    v3(trans.scale, trans.scale, trans.scale)
-                )            
-            );
-        }
-        entity_renderer.flush(&engine.renderer.camera);
     }
 }
 
+void system_render(Map* map, int time, int dt)
+{
+    auto registry = &map.registry;
+    auto entity_renderer = &map.entity_renderer;
+    auto cube_mesh = &map.cube_mesh;
+
+    engine.renderer.state.set_depth_state(DepthState.Default);
+
+    foreach (it, e; registry.view!(Includes!(CTransform, CModel)))
+    {
+        auto trans = it.get!(CTransform)(e);
+        auto mdl = it.get!(CModel)(e);
+        if (mdl.ctrl.target == null)
+            mdl.ctrl.target = &mdl.instance;
+
+        mdl.ctrl.update(dt/1000.0);
+
+        // fix rotation because model is broken
+        auto rot = quat.mult(quat.fromAxis(1,0,0, PIDIV2),  quat.fromAxis(0,0,1, trans.rot));
+        
+        mdl.instance.transform = mat4.set(trans.pos, rot, v3(trans.scale, trans.scale, trans.scale));
+        entity_renderer.render(&mdl.instance);
+    }
+    
+    foreach (it, e; registry.view!(Includes!(CTransform, CCube)))
+    {
+        auto trans = it.get!(CTransform)(e);
+        auto cube = it.get!(CCube)(e);
+
+
+        trans.rot += (dt / 1000.0);
+
+        entity_renderer.render(cube_mesh, 
+            mat4.set(
+                trans.pos,
+                quat.fromAxis(0,1,0, trans.rot),
+                v3(trans.scale, trans.scale, trans.scale)
+            )            
+        );
+    }
+    entity_renderer.flush(&engine.renderer.camera);        
+}
 
 struct CModel
 {

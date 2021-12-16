@@ -340,8 +340,8 @@ enum : uint {
 
     
     GL_RED                            = 0x1903,
-
     GL_DEPTH_COMPONENT24              = 0x81A6,
+    GL_TEXTURE_2D_ARRAY               = 0x8C1A,
 }
 
 void glActiveTexture(GLenum texture );
@@ -496,3 +496,25 @@ void glDeleteVertexArrays(GLsizei n, const(GLuint) *arrays);
 void glBindVertexArray(	GLuint array);
 void glDrawElements(GLenum,GLsizei,GLenum,const(GLvoid)*);
 
+void glTexImage3D(GLenum target,
+    GLint level,
+    GLint internalFormat,
+    GLsizei width,
+    GLsizei height,
+    GLsizei depth,
+    GLint border,
+    GLenum format,
+    GLenum type,
+    const(GLvoid)* data);
+
+void glTexSubImage3D(GLenum target,
+    GLint level,
+    GLint xoffset,
+    GLint yoffset,
+    GLint zoffset,
+    GLsizei width,
+    GLsizei height,
+    GLsizei depth,
+    GLenum format,
+    GLenum type,
+    const(GLvoid)* data);

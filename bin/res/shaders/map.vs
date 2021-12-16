@@ -1,6 +1,7 @@
 #version 300 es
 #ifdef GL_ES
 precision lowp float;
+precision highp sampler2DArray;
 #endif
 
 //#define BLENDED
@@ -13,6 +14,7 @@ in vec3 a_normal;
 
 #ifdef TEXTURE
 in vec2 a_texCoord0;
+in float a_texIndex;
 #endif
 
 #ifdef SKINNED
@@ -48,8 +50,10 @@ uniform vec4 u_cameraPosition;
 uniform mat4 u_worldTrans;
 
 #ifdef TEXTURE
-uniform sampler2D u_diffuseTexture;
+uniform sampler2DArray u_diffuseTexture;
 uniform vec4 u_diffuseUVTransform;
+
+out float v_texIndex;
 #endif
 
 #ifdef SKINNED
@@ -73,7 +77,8 @@ void main()
 	gl_Position = u_projViewTrans * pos;
 
 	#ifdef TEXTURE
-	v_diffuseUV = u_diffuseUVTransform.xy + a_texCoord0 * u_diffuseUVTransform.zw; 
+	v_diffuseUV = u_diffuseUVTransform.xy + a_texCoord0 * u_diffuseUVTransform.zw;
+    v_texIndex = a_texIndex;
 	#endif
 
 	#ifdef BLENDED

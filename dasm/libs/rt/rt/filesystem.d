@@ -268,6 +268,7 @@ struct FS
         char[256] path;
         ubyte flags = 0;
         uint id = 0;
+        void* usr;
 
         bool is_failed()
         {

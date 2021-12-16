@@ -252,6 +252,64 @@ Texture2D create_texture(uint width, uint height, ubyte* ptr, PixelFormat format
     return ret;
 }
 
+Texture2D create_texture_array(uint width, uint height, int depth, PixelFormat format = PixelFormat.Rgba)
+{
+    uint target = GL_TEXTURE_2D_ARRAY;
+    uint glformat = GL_RGBA;
+    uint handle;
+    glGenTextures(1, &handle);
+    glBindTexture(target, handle);
+    
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    // TODO: add other formats
+    if (format == PixelFormat.Rgba)
+        glformat = GL_RGBA;
+    else
+        assert(false, "nope");
+    
+    glTexImage3D(target, 0, glformat, width, height, depth, 0, glformat, GL_UNSIGNED_BYTE, null);
+
+
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glBindTexture(target, 0);
+
+    auto ret = Texture2D();
+    ret.gl_target = target;
+    ret.gl_handle = handle;
+    ret.width = width;
+    ret.height = height;
+    ret.format = format;
+    return ret;
+}
+
+void add_texture(Texture2D* tex, int index, ubyte* buffer)
+{
+    assert(tex.gl_target == GL_TEXTURE_2D_ARRAY);
+
+    uint glformat = GL_RGBA;
+    if (tex.format == PixelFormat.Rgba)
+        glformat = GL_RGBA;
+    else
+        assert(false, "nope");
+
+    glBindTexture(GL_TEXTURE_2D_ARRAY, tex.gl_handle);
+
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, index, tex.width, tex.height, 1, glformat, GL_UNSIGNED_BYTE, buffer);
+
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glBindTexture(tex.gl_target, 0);
+
+    debug check_gl_error();
+}
+
 final enum TextureFilter
 {
     Nearest, // gl.GL_NEAREST

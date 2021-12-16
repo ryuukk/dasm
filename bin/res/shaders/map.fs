@@ -1,6 +1,7 @@
 #version 300 es
 #ifdef GL_ES
 precision lowp float;
+precision highp sampler2DArray;
 #endif
 
 //#define BLENDED
@@ -19,7 +20,8 @@ in float v_alphaTest;
 
 #ifdef TEXTURE
 in vec2 v_diffuseUV;
-uniform sampler2D u_diffuseTexture;
+in float v_texIndex;
+uniform sampler2DArray u_diffuseTexture;
 #endif
 
 uniform vec4 u_fogColor;
@@ -35,7 +37,13 @@ void main()
 	vec4 diffuse = vec4(1.0, 1.0, 1.0, 1.0);
 	
 	#ifdef TEXTURE
-		diffuse = texture(u_diffuseTexture, v_diffuseUV);
+		// diffuse = texture(u_diffuseTexture, v_diffuseUV);
+		diffuse = texture(u_diffuseTexture, vec3(v_diffuseUV, v_texIndex));
+        // vec3 material_color = texture(u_diffuseTexture, vec3(v_diffuseUV, v_texIndex)).rgb;
+        // diffuse = vec4(material_color, 1.0);
+        //// if (diffure.x != 0)
+            //  diffuse.x += normal.x*0.0001;
+            //  diffuse.x = normal.x;
 	#else
 		diffuse.xyz = normal;
 	#endif
