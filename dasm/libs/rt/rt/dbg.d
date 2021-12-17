@@ -365,16 +365,13 @@ else
     }
 }
 
-
-float benchmark(const(char)[] tag, scope void delegate() f)
+import rt.time: StopWatch, Timespan;
+Timespan benchmark(const(char)[] tag, scope void delegate() f)
 {
-    import rt.time: StopWatch;
     StopWatch sw;
     sw.start();
     f();
-    auto ms = sw.elapsed.msecs;
-    LINFO("Function: {} took: {} msecs", tag, ms);
-    return ms;
+    return sw.elapsed;
 }
 
 version(Windows)
@@ -408,7 +405,7 @@ else
     enum PINK = "\033[1;35m";
     enum CYAN = "\033[1;36m";
     enum WHITE = "\033[1;37m";
-    enum GRAY = "\033[1;94m";
+    enum GRAY = "\033[1;30m";
     
     void set_color(const(char)* color)
     {
